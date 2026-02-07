@@ -1872,11 +1872,11 @@ def create_trade_chart(
     return fig
 
 
-def create_dashboard(start_period: str = "2015-Q1") -> Tuple[go.Figure, Dict[str, pd.DataFrame]]:
+def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Dict[str, pd.DataFrame]]:
     """Create a dashboard with GDP, Current Account, Inflation, and Labour Market charts.
 
     Returns:
-        Tuple of (figure, dict of dataframes for insight generation)
+        Tuple of (list of individual figures, dict of dataframes for insight generation)
     """
 
     # Fetch all data
@@ -1903,38 +1903,23 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[go.Figure, Dict[str
     gdp_df = contributions.merge(gdp_growth, on="TIME_PERIOD", how="outer")
     gdp_df = gdp_df.sort_values("TIME_PERIOD").reset_index(drop=True)
 
-    # Create subplot grid: 2 charts on top, 3 on bottom
-    # Using 6-column grid for flexibility
-    fig = make_subplots(
-        rows=2, cols=6,
-        specs=[
-            [{"colspan": 3}, None, None, {"colspan": 3}, None, None],  # Row 1: 2 wide charts
-            [{"colspan": 2}, None, {"colspan": 2}, None, {"colspan": 2}, None]  # Row 2: 3 charts
-        ],
-        subplot_titles=(
-            "Contributions to GDP Growth",
-            "Current Account Balance",
-            "Inflation",
-            "Unemployment Rate",
-            "Participation & Employment"
-        ),
-        horizontal_spacing=0.08,
-        vertical_spacing=0.18,
-    )
+    # Shared layout settings
+    _common = dict(template="plotly_white", hovermode="x unified", showlegend=False)
 
-    # ===== Row 1, Col 1: GDP Contributions =====
+    # ===== 1. GDP Contributions =====
+    gdp_fig = go.Figure()
     gdp_components = ["Consumption", "GFCF", "Inventories", "Exports", "Imports"]
     for comp in gdp_components:
         if comp in gdp_df.columns:
-            fig.add_trace(go.Bar(
+            gdp_fig.add_trace(go.Bar(
                 name=comp,
                 x=gdp_df["TIME_PERIOD"],
                 y=gdp_df[comp],
                 marker_color=GDP_COLORS[comp],
                 hovertemplate=f"{comp}: %{{y:.1f}} ppts<extra></extra>",
-            ), row=1, col=1)
+            ))
 
-    fig.add_trace(go.Scatter(
+    gdp_fig.add_trace(go.Scatter(
         name="GDP Growth",
         x=gdp_df["TIME_PERIOD"],
         y=gdp_df["GDP_growth"],
@@ -1942,22 +1927,30 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[go.Figure, Dict[str
         line=dict(color="black", width=2),
         marker=dict(size=4, color="black"),
         hovertemplate="GDP: %{y:.1f}%<extra></extra>",
-    ), row=1, col=1)
+    ))
 
-    # ===== Row 1, Col 4: Current Account =====
+    gdp_fig.update_layout(
+        **_common, barmode="relative", title="Contributions to GDP Growth",
+        height=420, margin=dict(l=60, r=30, t=50, b=80),
+    )
+    gdp_fig.update_xaxes(tickangle=-45, dtick=4)
+    gdp_fig.update_yaxes(title_text="ppts", zeroline=True, zerolinewidth=1)
+
+    # ===== 2. Current Account =====
+    ca_fig = go.Figure()
     ca_components = ["Goods", "Services", "Primary Income", "Secondary Income"]
     for comp in ca_components:
         if comp in ca_data.columns:
-            fig.add_trace(go.Bar(
+            ca_fig.add_trace(go.Bar(
                 name=comp,
                 x=ca_data["TIME_PERIOD"],
                 y=ca_data[comp],
                 marker_color=CA_COLORS[comp],
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
-            ), row=1, col=4)
+            ))
 
     if "Current Account" in ca_data.columns:
-        fig.add_trace(go.Scatter(
+        ca_fig.add_trace(go.Scatter(
             name="Current Account",
             x=ca_data["TIME_PERIOD"],
             y=ca_data["Current Account"],
@@ -1965,102 +1958,99 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[go.Figure, Dict[str
             line=dict(color="black", width=2),
             marker=dict(size=4, color="black"),
             hovertemplate="CA: $%{y:.1f}bn<extra></extra>",
-        ), row=1, col=4)
+        ))
 
-    # ===== Row 2, Col 1: Inflation =====
-    # Headline CPI
+    ca_fig.update_layout(
+        **_common, barmode="relative", title="Current Account Balance",
+        height=420, margin=dict(l=60, r=30, t=50, b=80),
+    )
+    ca_fig.update_xaxes(tickangle=-45, dtick=4)
+    ca_fig.update_yaxes(title_text="A$bn", zeroline=True, zerolinewidth=1)
+
+    # ===== 3. Inflation =====
+    inf_fig = go.Figure()
     if "Headline" in inflation_data.columns:
-        fig.add_trace(go.Scatter(
+        inf_fig.add_trace(go.Scatter(
             name="Headline CPI",
             x=inflation_data["TIME_PERIOD"],
             y=inflation_data["Headline"],
             mode="lines",
             line=dict(color="#AAAAAA", width=1.5),
             hovertemplate="Headline: %{y:.1f}%<extra></extra>",
-        ), row=2, col=1)
+        ))
 
-    # Trimmed Mean (the key measure)
     if "Trimmed Mean" in inflation_data.columns:
-        fig.add_trace(go.Scatter(
+        inf_fig.add_trace(go.Scatter(
             name="Trimmed Mean",
             x=inflation_data["TIME_PERIOD"],
             y=inflation_data["Trimmed Mean"],
             mode="lines",
             line=dict(color="#E45756", width=2.5),
             hovertemplate="Trimmed Mean: %{y:.1f}%<extra></extra>",
-        ), row=2, col=1)
+        ))
 
-    # Add RBA target band (2-3%)
-    fig.add_hrect(y0=2, y1=3, line_width=0, fillcolor="rgba(0,128,0,0.1)", row=2, col=1)
-    fig.add_hline(y=2, line_dash="dash", line_color="green", line_width=1, row=2, col=1)
-    fig.add_hline(y=3, line_dash="dash", line_color="green", line_width=1, row=2, col=1)
+    inf_fig.add_hrect(y0=2, y1=3, line_width=0, fillcolor="rgba(0,128,0,0.1)")
+    inf_fig.add_hline(y=2, line_dash="dash", line_color="green", line_width=1)
+    inf_fig.add_hline(y=3, line_dash="dash", line_color="green", line_width=1)
 
-    # ===== Row 2, Col 3: Unemployment Rate =====
+    inf_fig.update_layout(
+        **_common, title="Inflation",
+        height=380, margin=dict(l=50, r=30, t=50, b=80),
+    )
+    inf_fig.update_xaxes(tickangle=-45, dtick=4)
+    inf_fig.update_yaxes(title_text="%", zeroline=True, zerolinewidth=1)
+
+    # ===== 4. Unemployment Rate =====
+    unemp_fig = go.Figure()
     if "Unemployment Rate" in lf_data.columns:
-        fig.add_trace(go.Scatter(
+        unemp_fig.add_trace(go.Scatter(
             name="Unemployment Rate",
             x=lf_data["TIME_PERIOD"],
             y=lf_data["Unemployment Rate"],
             mode="lines",
             line=dict(color="#E45756", width=2),
             hovertemplate="Unemployment: %{y:.1f}%<extra></extra>",
-        ), row=2, col=3)
+        ))
 
-    # ===== Row 2, Col 5: Participation & Employment =====
+    unemp_fig.update_layout(
+        **_common, title="Unemployment Rate",
+        height=380, margin=dict(l=50, r=30, t=50, b=80),
+    )
+    unemp_fig.update_xaxes(tickangle=-45, dtick=12)
+    unemp_fig.update_yaxes(title_text="%", zeroline=True, zerolinewidth=1)
+
+    # ===== 5. Participation & Employment =====
+    part_fig = go.Figure()
     if "Participation Rate" in lf_data.columns:
-        fig.add_trace(go.Scatter(
+        part_fig.add_trace(go.Scatter(
             name="Participation Rate",
             x=lf_data["TIME_PERIOD"],
             y=lf_data["Participation Rate"],
             mode="lines",
             line=dict(color="#4C78A8", width=2),
             hovertemplate="Participation: %{y:.1f}%<extra></extra>",
-        ), row=2, col=5)
+        ))
 
     if "Employment/Pop Ratio" in lf_data.columns:
-        fig.add_trace(go.Scatter(
+        part_fig.add_trace(go.Scatter(
             name="Employment/Pop Ratio",
             x=lf_data["TIME_PERIOD"],
             y=lf_data["Employment/Pop Ratio"],
             mode="lines",
             line=dict(color="#54A24B", width=2),
             hovertemplate="Emp/Pop: %{y:.1f}%<extra></extra>",
-        ), row=2, col=5)
+        ))
 
-    # Update layout
-    fig.update_layout(
-        barmode="relative",
-        template="plotly_white",
-        hovermode="x unified",
-        height=950,
-        margin=dict(l=70, r=50, t=90, b=100),
-        showlegend=False,
+    part_fig.update_layout(
+        **_common, title="Participation & Employment",
+        height=380, margin=dict(l=50, r=30, t=50, b=80),
     )
+    part_fig.update_xaxes(tickangle=-45, dtick=12)
+    part_fig.update_yaxes(title_text="%")
 
-    # Update axes - Row 1
-    fig.update_xaxes(tickangle=-45, dtick=4, row=1, col=1)
-    fig.update_xaxes(tickangle=-45, dtick=4, row=1, col=4)
-    fig.update_yaxes(title_text="ppts", zeroline=True, zerolinewidth=1, row=1, col=1)
-    fig.update_yaxes(title_text="A$bn", zeroline=True, zerolinewidth=1, row=1, col=4)
+    charts = [gdp_fig, ca_fig, inf_fig, unemp_fig, part_fig]
 
-    # Update axes - Row 2
-    fig.update_xaxes(tickangle=-45, dtick=4, row=2, col=1)
-    fig.update_xaxes(tickangle=-45, dtick=12, row=2, col=3)
-    fig.update_xaxes(tickangle=-45, dtick=12, row=2, col=5)
-    fig.update_yaxes(title_text="%", zeroline=True, zerolinewidth=1, row=2, col=1)
-    fig.update_yaxes(title_text="%", zeroline=True, zerolinewidth=1, row=2, col=3)
-    fig.update_yaxes(title_text="%", row=2, col=5)
-
-    # Add source annotation
-    fig.add_annotation(
-        text="Source: ABS National Accounts, Balance of Payments, Labour Force; RBA Statistical Table G1",
-        xref="paper", yref="paper",
-        x=0.5, y=-0.105,
-        showarrow=False,
-        font=dict(size=10, color="gray"),
-    )
-
-    # Return figure and data for insight generation
+    # Return individual figures and data for insight generation
     data = {
         "gdp": gdp_df,
         "ca": ca_data,
@@ -2069,11 +2059,11 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[go.Figure, Dict[str
         "trade": trade_data,
     }
 
-    return fig, data
+    return charts, data
 
 
 def create_html_with_insights(
-    fig: go.Figure,
+    charts: List[go.Figure],
     insights: dict,
     output_path: str = "dashboard.html",
     trade_fig: go.Figure = None,
@@ -2084,13 +2074,38 @@ def create_html_with_insights(
 ):
     """Create HTML file with dashboard and insights summary box.
 
+    charts is a list of individual Plotly figures for the Big Picture tab,
+    rendered in a responsive CSS grid (2-col desktop, 1-col mobile).
     When trade_fig is provided, renders a tab bar (Big Picture / Trade) with
-    pure CSS/JS toggle. When trade_fig is None, renders the current
-    single-page layout (backward compatible).
+    pure CSS/JS toggle.
     """
 
-    # Generate the plotly HTML (div only, not full page)
-    chart_html = fig.to_html(full_html=False, include_plotlyjs='cdn', config={'responsive': True})
+    # Generate the plotly HTML for each chart (div only, not full page)
+    chart_htmls = []
+    for i, fig in enumerate(charts):
+        html = fig.to_html(
+            full_html=False,
+            include_plotlyjs='cdn' if i == 0 else False,
+            config={'responsive': True},
+        )
+        chart_htmls.append(html)
+
+    # Build the grid of charts
+    # Row 1: 2 wide charts (GDP, Current Account) — class "row-2"
+    # Row 2: 3 charts (Inflation, Unemployment, Participation) — class "row-3"
+    row1_panels = "\n".join(
+        f'<div class="chart-panel"><div class="chart-container">{h}</div></div>'
+        for h in chart_htmls[:2]
+    )
+    row2_panels = "\n".join(
+        f'<div class="chart-panel"><div class="chart-container">{h}</div></div>'
+        for h in chart_htmls[2:]
+    )
+    chart_grid_html = f"""
+    <div class="charts-row charts-row-2">{row1_panels}</div>
+    <div class="charts-row charts-row-3">{row2_panels}</div>
+    <p class="source-note">Source: ABS National Accounts, Balance of Payments, Labour Force; RBA Statistical Table G1</p>
+    """
 
     # Create grouped bullet points HTML with category subheadings
     if insights:
@@ -2282,9 +2297,7 @@ def create_html_with_insights(
         body_content = f"""
         {tab_bar_html}
         <div id="tab-overview" class="tab-content active">
-            <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
-                {chart_html}
-            </div>
+            {chart_grid_html}
             <div class="insights-box">
                 {bullets_html}
             </div>
@@ -2307,9 +2320,7 @@ def create_html_with_insights(
     else:
         tab_css = ""
         body_content = f"""
-        <div class="chart-container">
-            {chart_html}
-        </div>
+        {chart_grid_html}
         <div class="insights-box">
             {bullets_html}
         </div>"""
@@ -2368,6 +2379,20 @@ def create_html_with_insights(
         .insights-box h3:first-of-type {{
             margin-top: 0;
         }}
+        .charts-row {{
+            display: grid;
+            gap: 20px;
+            margin-bottom: 20px;
+        }}
+        .charts-row-2 {{
+            grid-template-columns: 1fr 1fr;
+        }}
+        .charts-row-3 {{
+            grid-template-columns: 1fr 1fr 1fr;
+        }}
+        .chart-panel {{
+            min-width: 0;
+        }}
         .chart-container {{
             background: white;
             border-radius: 8px;
@@ -2376,6 +2401,12 @@ def create_html_with_insights(
             width: 100%;
             overflow-x: auto;
             box-sizing: border-box;
+        }}
+        .source-note {{
+            text-align: center;
+            font-size: 0.78em;
+            color: #999;
+            margin: 0 0 10px 0;
         }}
         .trade-chart-wrap {{
             max-width: 1000px;
@@ -2390,6 +2421,10 @@ def create_html_with_insights(
             }}
             body {{
                 padding: 10px;
+            }}
+            .charts-row-2,
+            .charts-row-3 {{
+                grid-template-columns: 1fr;
             }}
             .trade-tables-grid {{
                 grid-template-columns: 1fr;
@@ -2465,8 +2500,8 @@ def main():
 
     start_period = "2015-Q1"
 
-    # Create dashboard and get data
-    dashboard, data = create_dashboard(start_period)
+    # Create dashboard charts and get data
+    charts, data = create_dashboard(start_period)
 
     # Generate insights
     print("Generating insights...")
@@ -2522,7 +2557,7 @@ def main():
 
     # Save HTML with insights
     create_html_with_insights(
-        dashboard, insights, "dashboard.html",
+        charts, insights, "dashboard.html",
         trade_fig=trade_chart, trade_tables_html=trade_tables_html,
         trade_insights=trade_insights,
         services_tables_html=services_tables_html,
