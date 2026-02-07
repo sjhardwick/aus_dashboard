@@ -78,6 +78,24 @@ TRADE_COLORS = {
     "Services Balance": "#B279A2", # Purple
 }
 
+# Financial account components (BOP item codes, original series TSEST=10)
+FA_COMPONENTS = {
+    8805: "Direct Investment",
+    8820: "Portfolio Investment",
+    8835: "Financial Derivatives",
+    8850: "Other Investment",
+    8865: "Reserve Assets",
+}
+
+# Colors for financial account components
+FA_COLORS = {
+    "Direct Investment": "#4C78A8",
+    "Portfolio Investment": "#F58518",
+    "Financial Derivatives": "#72B7B2",
+    "Other Investment": "#E45756",
+    "Reserve Assets": "#B279A2",
+}
+
 # Colors for labour force measures
 LF_COLORS = {
     "Unemployment Rate": "#E45756",      # Red
@@ -231,6 +249,39 @@ def get_trade_data(start_period: str = "2015-Q1") -> pd.DataFrame:
         pivot["Goods Balance"] = pivot["Goods Credits"] + pivot["Goods Debits"]
     if "Services Credits" in pivot.columns and "Services Debits" in pivot.columns:
         pivot["Services Balance"] = pivot["Services Credits"] + pivot["Services Debits"]
+
+    # Sort by time period
+    pivot = pivot.sort_values("TIME_PERIOD").reset_index(drop=True)
+
+    return pivot
+
+
+def get_financial_account(start_period: str = "2015-Q1") -> pd.DataFrame:
+    """Fetch financial account balance data (original series)."""
+    # Items: 8800=FA total, 8805=Direct, 8820=Portfolio, 8835=Derivatives,
+    #         8850=Other, 8865=Reserve Assets
+    items = [8800] + list(FA_COMPONENTS.keys())
+    items_str = "+".join(str(i) for i in items)
+    df = fetch_abs_csv("ABS,BOP", f"1.{items_str}.10.Q", start_period)
+
+    # Pivot to wide format
+    pivot = df.pivot_table(
+        index="TIME_PERIOD",
+        columns="DATA_ITEM",
+        values="OBS_VALUE",
+        aggfunc="first"
+    ).reset_index()
+
+    # Convert from millions to billions
+    for col in pivot.columns:
+        if col != "TIME_PERIOD":
+            pivot[col] = pivot[col] / 1000
+
+    # Rename columns
+    pivot = pivot.rename(columns={
+        8800: "Financial Account",
+        **FA_COMPONENTS
+    })
 
     # Sort by time period
     pivot = pivot.sort_values("TIME_PERIOD").reset_index(drop=True)
@@ -1780,6 +1831,86 @@ def create_current_account_chart(
     return fig
 
 
+def create_financial_account_chart(
+    fa_data: pd.DataFrame,
+    title: str = "Financial Account Balance (Quarterly)"
+) -> go.Figure:
+    """Create stacked bar chart for financial account components."""
+
+    df = fa_data.copy()
+
+    # Create figure
+    fig = go.Figure()
+
+    # Add bars for each component
+    components = list(FA_COMPONENTS.values())
+    for comp in components:
+        if comp in df.columns:
+            fig.add_trace(go.Bar(
+                name=comp,
+                x=df["TIME_PERIOD"],
+                y=df[comp],
+                marker_color=FA_COLORS[comp],
+                hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
+            ))
+
+    # Add financial account total line
+    if "Financial Account" in df.columns:
+        fig.add_trace(go.Scatter(
+            name="Financial Account",
+            x=df["TIME_PERIOD"],
+            y=df["Financial Account"],
+            mode="lines+markers",
+            line=dict(color="black", width=2),
+            marker=dict(size=6, color="black"),
+            hovertemplate="FA: $%{y:.1f}bn<extra></extra>",
+        ))
+
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(size=18),
+        ),
+        barmode="relative",
+        xaxis=dict(
+            title="Quarter",
+            tickangle=-45,
+            dtick=4,
+        ),
+        yaxis=dict(
+            title="A$ Billion",
+            zeroline=True,
+            zerolinewidth=1,
+            zerolinecolor="gray",
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+        ),
+        template="plotly_white",
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=60, r=40, t=100, b=80),
+    )
+
+    # Add annotation for data source
+    fig.add_annotation(
+        text="Source: ABS Balance of Payments (Cat. 5302.0) — Original series",
+        xref="paper",
+        yref="paper",
+        x=0,
+        y=-0.18,
+        showarrow=False,
+        font=dict(size=10, color="gray"),
+    )
+
+    return fig
+
+
 def create_trade_chart(
     trade_data: pd.DataFrame,
 ) -> List[go.Figure]:
@@ -2051,6 +2182,7 @@ def create_html_with_insights(
     trade_insights: Dict[str, List[str]] = None,
     services_tables_html: str = "",
     services_trade_insights: Dict[str, List[str]] = None,
+    financial_fig: go.Figure = None,
 ):
     """Create HTML file with dashboard and insights summary box.
 
@@ -2114,10 +2246,16 @@ def create_html_with_insights(
         <p class="source-note">Source: ABS Balance of Payments (Cat. 5302.0)</p>
         """
 
-        tab_bar_html = """
+        financial_tab_btn = ""
+        if financial_fig is not None:
+            financial_tab_btn = """
+            <button class="tab-btn" onclick="switchTab('financial')">Financial</button>"""
+
+        tab_bar_html = f"""
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchTab('overview')">Big Picture</button>
             <button class="tab-btn" onclick="switchTab('trade')">Trade</button>
+            {financial_tab_btn}
         </div>"""
 
         tab_css = """
@@ -2286,6 +2424,20 @@ def create_html_with_insights(
         # 3) Services insights
         services_insights_html = _build_insight_box(services_trade_insights)
 
+        # Build financial tab content if provided
+        financial_tab_html = ""
+        if financial_fig is not None:
+            fa_chart_html = financial_fig.to_html(
+                full_html=False, include_plotlyjs=False, config={'responsive': True}
+            )
+            financial_tab_html = f"""
+        <div id="tab-financial" class="tab-content">
+            <div class="charts-row charts-row-1">
+                <div class="chart-panel"><div class="chart-container">{fa_chart_html}</div></div>
+            </div>
+            <p class="source-note">Source: ABS Balance of Payments (Cat. 5302.0) — Original series</p>
+        </div>"""
+
         body_content = f"""
         {tab_bar_html}
         <div id="tab-overview" class="tab-content active">
@@ -2304,6 +2456,7 @@ def create_html_with_insights(
             {services_tables_html}
             {services_insights_html}
         </div>
+        {financial_tab_html}
         {tab_js}"""
     else:
         tab_css = ""
@@ -2371,6 +2524,12 @@ def create_html_with_insights(
             display: grid;
             gap: 20px;
             margin-bottom: 20px;
+        }}
+        .charts-row-1 {{
+            grid-template-columns: 1fr;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
         }}
         .charts-row-2 {{
             grid-template-columns: 1fr 1fr;
@@ -2543,6 +2702,11 @@ def main():
             for insight in items:
                 print(f"    • {insight}")
 
+    # Fetch financial account data and create chart
+    print("Fetching financial account data...")
+    fa_data = get_financial_account(start_period)
+    financial_fig = create_financial_account_chart(fa_data)
+
     # Save HTML with insights
     create_html_with_insights(
         charts, insights, "dashboard.html",
@@ -2550,6 +2714,7 @@ def main():
         trade_insights=trade_insights,
         services_tables_html=services_tables_html,
         services_trade_insights=services_trade_insights,
+        financial_fig=financial_fig,
     )
     print("\nSaved: dashboard.html")
 
