@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Australian Macroeconomic Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #fafafa;
+        }
+        .container {
+            max-width: 1450px;
+            margin: 0 auto;
+        }
+        .insights-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-left: 4px solid #4C78A8;
+            border-radius: 8px;
+            padding: 20px 25px;
+            margin-top: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .insights-box h2 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+        .insights-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #495057;
+        }
+        .insights-box li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .insights-box li:last-child {
+            margin-bottom: 0;
+        }
+        .insights-box h3 {
+            margin: 15px 0 8px 0;
+            color: #34495e;
+            font-size: 1.05em;
+            font-weight: 600;
+        }
+        .insights-box h3:first-of-type {
+            margin-top: 0;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 10px;
+        }
+        
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+        }
+        .tab-btn {
+            padding: 12px 28px;
+            border: 1px solid #dee2e6;
+            border-bottom: none;
+            background: #e9ecef;
+            color: #495057;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            font-family: inherit;
+            transition: background 0.15s, color 0.15s;
+        }
+        .tab-btn:hover {
+            background: #f8f9fa;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #2c3e50;
+            font-weight: 600;
+            border-bottom: 2px solid white;
+            margin-bottom: -1px;
+            position: relative;
+            z-index: 1;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .trade-tables-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 28px;
+        }
+        .trade-table-wrap {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 16px;
+            border: 1px solid #dee2e6;
+        }
+        .trade-table-wrap h3 {
+            margin: 0 0 12px 0;
+            color: #2c3e50;
+            font-size: 1.05em;
+            font-weight: 600;
+        }
+        .trade-table-scroll {
+            max-height: 420px;
+            overflow-y: auto;
+        }
+        .trade-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88em;
+        }
+        .trade-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .trade-table th {
+            background: #f1f3f5;
+            color: #495057;
+            font-weight: 600;
+            padding: 8px 10px;
+            text-align: right;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+        .trade-table th.tt-name-hdr {
+            text-align: left;
+        }
+        .trade-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .trade-table tr:hover {
+            background: #f8f9fa;
+        }
+        .tt-num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .tt-name {
+            text-align: left;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .trade-table-source {
+            margin: 8px 0 0 0;
+            font-size: 0.78em;
+            color: #999;
+        }
+        .trade-section-heading {
+            margin: 32px 0 4px 0;
+            color: #2c3e50;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('overview')">Big Picture</button>
+            <button class="tab-btn" onclick="switchTab('trade')">Trade</button>
+        </div>
+        <div id="tab-overview" class="tab-content active">
+            <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
+                <div>                        <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.3.1.min.js" integrity="sha256-4rD3fugVb/nVJYUv5Ky3v+fYXoouHaBSP20WIJuEiWg=" crossorigin="anonymous"></script>                <div id="4de7b90d-a290-4e5b-aa57-8e5cd26675b2" class="plotly-graph-div" style="height:950px; width:1400px;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("4de7b90d-a290-4e5b-aa57-8e5cd26675b2")) {                    Plotly.newPlot(                        "4de7b90d-a290-4e5b-aa57-8e5cd26675b2",                        [{"hovertemplate":"Consumption: %{y:.1f} ppts\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#4C78A8"},"name":"Consumption","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"AAAAAAAA4D8AAAAAAADgP2ZmZmZmZuY\u002fmpmZmZmZ2T+amZmZmZnpP2ZmZmZmZuY\u002fZmZmZmZm5j8zMzMzMzPTPzMzMzMzM+M\u002fMzMzMzMz4z+amZmZmZnZP83MzMzMzOw\u002fMzMzMzMz4z+amZmZmZnZPzMzMzMzM9M\u002fAAAAAAAA4D+amZmZmZnZP5qZmZmZmek\u002fmpmZmZmZuT8AAAAAAADgP5qZmZmZmcm\u002fMzMzMzMzGcDNzMzMzMwQQM3MzMzMzARAmpmZmZmZ6T\u002fNzMzMzMzsPzMzMzMzM\u002fu\u002fMzMzMzMzC0DNzMzMzMz8P83MzMzMzOw\u002fmpmZmZmZ2T9mZmZmZmbmP5qZmZmZmdk\u002fmpmZmZmZ2T+amZmZmZm5P5qZmZmZmbk\u002fMzMzMzMz4z+amZmZmZnJP5qZmZmZmdk\u002fAAAAAAAA4D8zMzMzMzPTP2ZmZmZmZuY\u002fmpmZmZmZ2T8="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"GFCF: %{y:.1f} ppts\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#F58518"},"name":"GFCF","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"mpmZmZmZub8zMzMzMzPTv5qZmZmZmdm\u002fmpmZmZmZyb+amZmZmZm5PzMzMzMzM9O\u002fAAAAAAAA4L+amZmZmZnpP5qZmZmZmbk\u002fmpmZmZmZyT9mZmZmZmbmPwAAAAAAAAAAMzMzMzMz0z+amZmZmZnJv5qZmZmZmck\u002fmpmZmZmZ2b+amZmZmZm5vwAAAAAAAOC\u002fmpmZmZmZ2T8AAAAAAAAAAJqZmZmZmbm\u002fzczMzMzM9L+amZmZmZnZP5qZmZmZmfE\u002fMzMzMzMz8z8AAAAAAADgP5qZmZmZmck\u002fmpmZmZmZuT+amZmZmZnJPwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOA\u002fZmZmZmZm5j+amZmZmZnJPwAAAAAAAAAAmpmZmZmZub+amZmZmZnJPzMzMzMzM9M\u002fmpmZmZmZuT8AAAAAAAAAAJqZmZmZmcm\u002fZmZmZmZm5j8="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"Inventories: %{y:.1f} ppts\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#72B7B2"},"name":"Inventories","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"MzMzMzMz4z+amZmZmZnJvwAAAAAAAAAAAAAAAAAAAACamZmZmZm5vzMzMzMzM9M\u002fmpmZmZmZuT+amZmZmZnZvzMzMzMzM9M\u002fMzMzMzMz47+amZmZmZnZPwAAAAAAAAAAAAAAAAAAAAAzMzMzMzPTPzMzMzMzM9O\u002fAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOC\u002fmpmZmZmZyT+amZmZmZnJv5qZmZmZmcm\u002fmpmZmZmZub\u002fNzMzMzMzsP5qZmZmZmdm\u002fMzMzMzMz4z+amZmZmZnJPzMzMzMzM+O\u002fmpmZmZmZ6T8AAAAAAADgPzMzMzMzM+O\u002fmpmZmZmZ6T+amZmZmZnZvwAAAAAAAAAAMzMzMzMz878AAAAAAADgPzMzMzMzM9O\u002fMzMzMzMz4z+amZmZmZnJv5qZmZmZmcm\u002fmpmZmZmZyb8zMzMzMzPTPwAAAAAAAAAAAAAAAAAA4L8="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"Exports: %{y:.1f} ppts\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#54A24B"},"name":"Exports","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"ZmZmZmZm5j9mZmZmZmbmv83MzMzMzOw\u002fMzMzMzMz0z8AAAAAAADgP5qZmZmZmbk\u002fMzMzMzMz0z+amZmZmZnpPwAAAAAAAOC\u002fAAAAAAAA4D+amZmZmZnZP5qZmZmZmdm\u002fmpmZmZmZ6T8zMzMzMzPTP5qZmZmZmbk\u002fAAAAAAAAAACamZmZmZm5PwAAAAAAAOA\u002fmpmZmZmZuT+amZmZmZm5v83MzMzMzOy\u002fzczMzMzM\u002fL8AAAAAAADwv5qZmZmZmfE\u002fmpmZmZmZyT+amZmZmZnpvwAAAAAAAAAAmpmZmZmZyb+amZmZmZm5P5qZmZmZmek\u002fmpmZmZmZuT8zMzMzMzPjP5qZmZmZmdk\u002fmpmZmZmZ6T8zMzMzMzPTPwAAAAAAAOC\u002fmpmZmZmZ2T+amZmZmZm5vwAAAAAAAAAAmpmZmZmZuT8AAAAAAAAAADMzMzMzM+M\u002fMzMzMzMz0z8="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"Imports: %{y:.1f} ppts\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#E45756"},"name":"Imports","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"MzMzMzMz07+amZmZmZnJvwAAAAAAAAAAmpmZmZmZuT+amZmZmZnZPzMzMzMzM9O\u002fAAAAAAAA4L8zMzMzMzPTv83MzMzMzOy\u002fmpmZmZmZuT8AAAAAAADgv5qZmZmZmcm\u002fmpmZmZmZ6b+amZmZmZm5v5qZmZmZmdk\u002fmpmZmZmZub+amZmZmZm5P5qZmZmZmbm\u002fmpmZmZmZuT+amZmZmZm5PzMzMzMzM\u002fM\u002fZmZmZmZmBkCamZmZmZnxv5qZmZmZmfG\u002fMzMzMzMz07+amZmZmZnZvzMzMzMzM+M\u002fAAAAAAAA4L+amZmZmZn5vwAAAAAAAOC\u002fzczMzMzM7L8AAAAAAADgP2ZmZmZmZua\u002fAAAAAAAA4L8zMzMzMzPjvzMzMzMzM+M\u002fzczMzMzM9L+amZmZmZm5vwAAAAAAAAAAmpmZmZmZub8AAAAAAAAAAAAAAAAAAOC\u002fMzMzMzMz078="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"GDP: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"black","width":2},"marker":{"color":"black","size":4},"mode":"lines+markers","name":"GDP Growth","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"AAAAAAAA8D+amZmZmZm5PwAAAAAAAPA\u002fMzMzMzMz4z\u002fNzMzMzMzsP2ZmZmZmZuY\u002fAAAAAAAAAAAzMzMzMzPzPzMzMzMzM9M\u002fMzMzMzMz4z\u002fNzMzMzMzsP5qZmZmZmdk\u002fAAAAAAAA8D9mZmZmZmbmP5qZmZmZmdk\u002fmpmZmZmZyT9mZmZmZmbmPzMzMzMzM9M\u002fMzMzMzMz4z8zMzMzMzPjP5qZmZmZmcm\u002fMzMzMzMzG8AAAAAAAAAMQDMzMzMzMwtAmpmZmZmZAUCamZmZmZnpPzMzMzMzM\u002fu\u002fzczMzMzMDEAAAAAAAADwP83MzMzMzOw\u002fAAAAAAAA4D\u002fNzMzMzMzsPwAAAAAAAOA\u002fmpmZmZmZ2T+amZmZmZnZP5qZmZmZmbk\u002fMzMzMzMz0z+amZmZmZnJPzMzMzMzM9M\u002fAAAAAAAA4D+amZmZmZnZP2ZmZmZmZuY\u002fmpmZmZmZ2T8="},"type":"scatter","xaxis":"x","yaxis":"y"},{"hovertemplate":"Goods: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#54A24B"},"name":"Goods","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"N4lBYOXQA8DufD81XnogwNnO91PjJRnAfT81XrqJIMBvEoPAyiEdwGiR7Xw\u002ftRXAH4XrUbgeCsDdJAaBlUMfQLpJDAIrhxVACKwcWmQ7DEA\u002fNV66SQwNQLx0kxgEVvg\u002fbxKDwMqhCUA5tMh2vh8SQAaBlUOLbCJA\u002fKnx0k1iJkBmZmZmZiYqQDMzMzMzkzNA\u002fKnx0k1iNUBQjZduEsMsQIXrUbge5TFAH4XrUbgeMUDFILByaJEiQCUGgZVDCyxAL90kBoHVNUAlBoGVQ6s8QFyPwvUoXEJAWmQ730+tOkCDwMqhRXY\u002fQKRwPQrXw0hAppvEILDiQ0CsHFpkO69EQKabxCCwgkNARIts5\u002fvJP0BeukkMAms5QI2XbhKDID1AUrgehetRNUA730+Nl24wQJHtfD813itA7nw\u002fNV56LkDpJjEIrJwqQDm0yHa+HydA5\u002fup8dJNJkA="},"type":"bar","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"Services: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#E45756"},"name":"Services","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"ZmZmZmZmBsACK4cW2c4JwKjGSzeJQQvAvp8aL90kDcBEi2zn+6kEwCuHFtnO9wbA8tJNYhBYAMD2KFyPwvX+v7TIdr6fGgLA8tJNYhBY\u002fb+R7Xw\u002fNV4CwIts5\u002fup8QfATDeJQWDlCcAtsp3vp8YJwKAaL90kBgvA16NwPQrXCsBt5\u002fup8dIEwJ7vp8ZLNwPANV66SQwCAcCiRbbz\u002fdT+vxsv3SQGgQ3AObTIdr6fC0A9CtejcD0BQKAaL90kBvs\u002fHVpkO99P7T\u002f6fmq8dJPQP7Kd76fGSwHAEFg5tMh2EsCLbOf7qfEcwLTIdr6fWiDA\u002ftR46SaxJsCmm8QgsHIlwFpkO99PzSDAWDm0yHb+IsBiEFg5tEgjwHNoke18fyHAI9v5fmq8IMD0\u002fdR46eYhwFg5tMh2fiTAtvP91HjpIsDHSzeJQSAiwKrx0k1ikCHA+n5qvHRTIcA="},"type":"bar","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"Primary Income: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#4C78A8"},"name":"Primary Income","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"3SQGgZXDH8C+nxov3SQiwNnO91PjJSXATmIQWDk0JMCcxCCwcuggwNv5fmq8dCTAaJHtfD+1IsBKDAIrh9YowNv5fmq89CnAZmZmZmZmK8CBlUOLbKcrwIlBYOXQ4izAJzEIrByaLMDb+X5qvFQwwFpkO99P7TDAL90kBoGVMMDhehSuR6EwwAisHFpk+zDABoGVQ4tsLMApXI\u002fC9egqwDEIrBxaZCbAEoPAyqGFIMC4HoXrUTgTwLByaJHtfBLAN4lBYOVQH8DpJjEIrJwlwJhuEoPACi\u002fAKVyPwvWINMBxPQrXo7A4wCGwcmiRzT7AXI\u002fC9ShMQMCwcmiR7Tw7wLByaJHt\u002fDzADi2yne+nN8AX2c73U6M3wKRwPQrX4zbAnMQgsHJoN8CTGARWDq03wGiR7Xw\u002fNTPANV66SQzCNsCe76fGS7czwHe+nxov\u002fTLAcT0K16OwMsA="},"type":"bar","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"Secondary Income: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#B279A2"},"name":"Secondary Income","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"exSuR+F63L9CYOXQItvlvyGwcmiR7cy\u002fWDm0yHa+v7\u002fLoUW28\u002f3Ev\u002fyp8dJNYsC\u002flkOLbOf72b9U46WbxCDAv3WTGARWDt2\u002fvHSTGARW1r\u002fpJjEIrBzSvzvfT42XbtK\u002fukkMAiuHpr+28\u002f3UeOnGv8dLN4lBYNW\u002fF9nO91Pjxb9iEFg5tMjWv1CNl24Sg8A\u002fDi2yne+nxr\u002fufD81XrrRvwaBlUOLbMe\u002fj8L1KFyP4r8zMzMzMzPjv\u002fp+arx0k+i\u002fvHSTGARW3r\u002fjpZvEILD2v\u002fYoXI\u002fC9eS\u002fEoPAyqFF6r\u002fP91PjpZvovy2yne+nxue\u002fSOF6FK5Hwb8dWmQ730\u002fVv\u002fp+arx0k8i\u002fokW28\u002f3U0L\u002fD9Shcj8Ldv2Dl0CLb+c6\u002fMzMzMzMzs78K16NwPQq3v7pJDAIrh7a\u002fexSuR+F6tL8hsHJoke3cv8l2vp8aL60\u002fexSuR+F63L8="},"type":"bar","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"CA: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"black","width":2},"marker":{"color":"black","size":4},"mode":"lines+markers","name":"Current Account","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"+n5qvHRTK8C4HoXrUTg1wB+F61G4fjTAUI2XbhIjNsCWQ4ts53sywEjhehSupzLAiUFg5dAiLsAOLbKd76cawMdLN4lBoCTAaJHtfD+1KMDNzMzMzIwpwIcW2c73MzDAGy\u002fdJAbBLMCBlUOLbGcuwEJg5dAi2ybASgwCK4fWIcB1kxgEVg4awNEi2\u002fl+atQ\u002fYOXQItt5E0Cmm8QgsHL0vzm0yHa+nwZAEFg5tMh2J0CkcD0K1yMYQDEIrBxapCRAvp8aL93kLEBOYhBYObQwQG8Sg8DKYTJAZDvfT42X5j9YObTIdr7zv3e+nxovnSNA001iEFg5EcBkO99PjZcIQKAaL90kBvc\u002f1XjpJjEI+r8OLbKd76cgwArXo3A9CgbAHVpkO98PJcApXI\u002fC9UgwwJ7vp8ZLNy\u002fArkfhehQOMcAMAiuHFtkvwLpJDAIrJzDATDeJQWClMMA="},"type":"scatter","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"Headline: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#AAAAAA","width":1.5},"mode":"lines","name":"Headline CPI","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3","2025-Q4","2026-Q1","2026-Q2","2026-Q3"],"y":{"dtype":"f8","bdata":"zczMzMzM9D8AAAAAAAD4PwAAAAAAAPg\u002fMzMzMzMz+z\u002fNzMzMzMz0PwAAAAAAAPA\u002fzczMzMzM9D8AAAAAAAD4P83MzMzMzABAZmZmZmZm\u002fj\u002fNzMzMzMz8PwAAAAAAAABAZmZmZmZm\u002fj\u002fNzMzMzMwAQGZmZmZmZv4\u002fzczMzMzM\u002fD\u002fNzMzMzMz0PwAAAAAAAPg\u002fMzMzMzMz+z\u002fNzMzMzMz8P5qZmZmZmQFAMzMzMzMz078zMzMzMzPjP83MzMzMzOw\u002fmpmZmZmZ8T9mZmZmZmYOQM3MzMzMzAhAAAAAAAAADEBmZmZmZmYUQM3MzMzMzBhAMzMzMzMzHUCamZmZmZkfQAAAAAAAABxAAAAAAAAAGEAzMzMzMzMVQGZmZmZmZhBAzczMzMzMDEBmZmZmZmYOQDMzMzMzMwdAMzMzMzMzA0AzMzMzMzMDQM3MzMzMzABAmpmZmZmZCUDNzMzMzMwMQAAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fw=="},"type":"scatter","xaxis":"x3","yaxis":"y3"},{"hovertemplate":"Trimmed Mean: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#E45756","width":2.5},"mode":"lines","name":"Trimmed Mean","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3","2025-Q4","2026-Q1","2026-Q2","2026-Q3"],"y":{"dtype":"f8","bdata":"ZmZmZmZmAkCamZmZmZkBQM3MzMzMzABAzczMzMzMAEAzMzMzMzP7P5qZmZmZmfk\u002fmpmZmZmZ+T8AAAAAAAD4PzMzMzMzM\u002fs\u002fMzMzMzMz+z8zMzMzMzP7PzMzMzMzM\u002fs\u002fMzMzMzMz+z+amZmZmZn5PzMzMzMzM\u002fs\u002fzczMzMzM\u002fD+amZmZmZn5P5qZmZmZmfk\u002fAAAAAAAA+D8AAAAAAAD4PzMzMzMzM\u002fs\u002fMzMzMzMz8z8zMzMzMzPzPzMzMzMzM\u002fM\u002fmpmZmZmZ8T+amZmZmZn5P83MzMzMzABAzczMzMzMBEBmZmZmZmYOQJqZmZmZmRNAAAAAAAAAGEAzMzMzMzMbQAAAAAAAABpAMzMzMzMzF0BmZmZmZmYUQM3MzMzMzBBAZmZmZmZmEEBmZmZmZmYQQM3MzMzMzAxAZmZmZmZmCkAAAAAAAAAIQJqZmZmZmQVAAAAAAAAACEAzMzMzMzMLQAAAAAAAAPh\u002fAAAAAAAA+H8AAAAAAAD4fw=="},"type":"scatter","xaxis":"x3","yaxis":"y3"},{"hovertemplate":"Unemployment: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#E45756","width":2},"mode":"lines","name":"Unemployment Rate","x":["Jan 2015","Feb 2015","Mar 2015","Apr 2015","May 2015","Jun 2015","Jul 2015","Aug 2015","Sep 2015","Oct 2015","Nov 2015","Dec 2015","Jan 2016","Feb 2016","Mar 2016","Apr 2016","May 2016","Jun 2016","Jul 2016","Aug 2016","Sep 2016","Oct 2016","Nov 2016","Dec 2016","Jan 2017","Feb 2017","Mar 2017","Apr 2017","May 2017","Jun 2017","Jul 2017","Aug 2017","Sep 2017","Oct 2017","Nov 2017","Dec 2017","Jan 2018","Feb 2018","Mar 2018","Apr 2018","May 2018","Jun 2018","Jul 2018","Aug 2018","Sep 2018","Oct 2018","Nov 2018","Dec 2018","Jan 2019","Feb 2019","Mar 2019","Apr 2019","May 2019","Jun 2019","Jul 2019","Aug 2019","Sep 2019","Oct 2019","Nov 2019","Dec 2019","Jan 2020","Feb 2020","Mar 2020","Apr 2020","May 2020","Jun 2020","Jul 2020","Aug 2020","Sep 2020","Oct 2020","Nov 2020","Dec 2020","Jan 2021","Feb 2021","Mar 2021","Apr 2021","May 2021","Jun 2021","Jul 2021","Aug 2021","Sep 2021","Oct 2021","Nov 2021","Dec 2021","Jan 2022","Feb 2022","Mar 2022","Apr 2022","May 2022","Jun 2022","Jul 2022","Aug 2022","Sep 2022","Oct 2022","Nov 2022","Dec 2022","Jan 2023","Feb 2023","Mar 2023","Apr 2023","May 2023","Jun 2023","Jul 2023","Aug 2023","Sep 2023","Oct 2023","Nov 2023","Dec 2023","Jan 2024","Feb 2024","Mar 2024","Apr 2024","May 2024","Jun 2024","Jul 2024","Aug 2024","Sep 2024","Oct 2024","Nov 2024","Dec 2024","Jan 2025","Feb 2025","Mar 2025","Apr 2025","May 2025","Jun 2025","Jul 2025","Aug 2025","Sep 2025","Oct 2025","Nov 2025","Dec 2025"],"y":{"dtype":"f8","bdata":"cXwGN8ZoGUB5Ug2YE54YQJJpwGIFahhA6yLga2NzGEC8hWS3hbkXQMAH0GvDBxhAPbpsz4caGUDt0Tz8DFoYQE+fkcZwshhAr0yuGGSlF0ChcgKJ3GYXQD8C+79V9BZACW5BQtYrGEBNX7Y6jMcWQATl14t4nRZAN7UiIBWVFkC0PsSKQ+MWQHIxig4WyBZAZyvMzuTHFkDxnLFYWHYWQFfLAMQbqRZAle7PwQpiFkBGNXihsREXQHbL5XHeVBdAcwp27DW\u002fFkBefZ8emZIXQBboyet3YxdAtEiHRRRwFkA1c7MFpTAWQIvkhjoHfhZAuqdIEVtuFkCGBr2SPx8WQFpJ6aHP2hVA71cizMSbFUDUqV3ZJtEVQGKb2Gx6chZAN+GgtYkcFkCPzYbjllIWQGVwUqBoIRZAROhWvh0vFkDkfQMw8b0VQKOh89ieXhVACNBKtaowFUD5iFb2dvoUQAT0kGPKExRAoVjZBDkAFECnYfAXUG8UQABNa3CuCxRAwDrxSeUxFECar\u002fW5mPYTQObRS5TWXhRAS2ezLJDjFEBSVOwej8cUQPGYJhGGChVAchz0fDgeFUB5Ka90wggVQARC43CD6RRAdnCwNzE0FUAs5Up3tq8UQN+c1\u002fkzHxRAPL9JT2gAFUDqx8s\u002fn3EUQIBJxygRzRRAlbRmVK46GUC1TXXxTPIbQPNRqYa7sh1Aphi1NQHGHUCvRF7eNS8bQAkX0fqEtRtAEVX4M7zJG0CYV4U4nDobQBzfi+29LRpAt720E+sdGUBRTtW5eWUXQJCps0HDrhZAcWU\u002fQRjqFUCek2JwYm4UQHY1mthTGRRAMDL5Tf7qEkDjvAcBXE0SQDS89lg80RJAlGJPVJnuFEBU5RgcZ4MSQFIYStwZzBBANIFDJBqrEECHUvfYyCMQQOL6XuBF0Q9ABgph2tztDkCJbotsxn0PQJuBgGvd3AxAfmx5glCgC0B+cPxY2jwMQDNqY5HLzAxAsMuNdbN3C0BNd0swpBQMQNzBgAy6KAxAC5\u002fnLg1UDUAmDupsEuUMQJi3sI\u002fKrAxAObnfoSjIDUDwOQvWk6wMQB4yiordKwxAidKcxDnFDUBU3tCMLHYNQLm6jDB\u002ffAxAovxyoGY0DkAjq\u002fChI2UPQHnJYg+r1w9AtmS4rlZlEEAXHLFYu+wNQDn\u002fAoOcDg9Aq7N7bnhwEEBanHPo2\u002f8PQPhGAHmnJRBAe38oPXjSEECL28sqKoYQQBmFLCTDEhBAK1klw7dZEEAjnnCf6moPQFSqhvUt6A9AYvnzbcF+EEBsw1GHT0UQQPQq+I6WPhBAUVMmkG1YEEDl9FA2QGQQQOm4GtmVRhFASQaIm7YDEUBfzBrlLgARQNEkTnohxRFAdVAuMqZNEUDphXXCzzwRQDrcu8RgaxBA"},"type":"scatter","xaxis":"x4","yaxis":"y4"},{"hovertemplate":"Participation: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#4C78A8","width":2},"mode":"lines","name":"Participation Rate","x":["Jan 2015","Feb 2015","Mar 2015","Apr 2015","May 2015","Jun 2015","Jul 2015","Aug 2015","Sep 2015","Oct 2015","Nov 2015","Dec 2015","Jan 2016","Feb 2016","Mar 2016","Apr 2016","May 2016","Jun 2016","Jul 2016","Aug 2016","Sep 2016","Oct 2016","Nov 2016","Dec 2016","Jan 2017","Feb 2017","Mar 2017","Apr 2017","May 2017","Jun 2017","Jul 2017","Aug 2017","Sep 2017","Oct 2017","Nov 2017","Dec 2017","Jan 2018","Feb 2018","Mar 2018","Apr 2018","May 2018","Jun 2018","Jul 2018","Aug 2018","Sep 2018","Oct 2018","Nov 2018","Dec 2018","Jan 2019","Feb 2019","Mar 2019","Apr 2019","May 2019","Jun 2019","Jul 2019","Aug 2019","Sep 2019","Oct 2019","Nov 2019","Dec 2019","Jan 2020","Feb 2020","Mar 2020","Apr 2020","May 2020","Jun 2020","Jul 2020","Aug 2020","Sep 2020","Oct 2020","Nov 2020","Dec 2020","Jan 2021","Feb 2021","Mar 2021","Apr 2021","May 2021","Jun 2021","Jul 2021","Aug 2021","Sep 2021","Oct 2021","Nov 2021","Dec 2021","Jan 2022","Feb 2022","Mar 2022","Apr 2022","May 2022","Jun 2022","Jul 2022","Aug 2022","Sep 2022","Oct 2022","Nov 2022","Dec 2022","Jan 2023","Feb 2023","Mar 2023","Apr 2023","May 2023","Jun 2023","Jul 2023","Aug 2023","Sep 2023","Oct 2023","Nov 2023","Dec 2023","Jan 2024","Feb 2024","Mar 2024","Apr 2024","May 2024","Jun 2024","Jul 2024","Aug 2024","Sep 2024","Oct 2024","Nov 2024","Dec 2024","Jan 2025","Feb 2025","Mar 2025","Apr 2025","May 2025","Jun 2025","Jul 2025","Aug 2025","Sep 2025","Oct 2025","Nov 2025","Dec 2025"],"y":{"dtype":"f8","bdata":"1X5jtkExUEBGBvunwjlQQFUI1DC2N1BAvlP5hXQzUEA3nfBU+DVQQCD1rqy6MlBA8o5881VFUECNd6rwZTlQQJTOExH2PlBAMcuFZ9VJUECp3nWRHU5QQObQv7D+SVBANEaQ7\u002fdQUECf3tYnikBQQO5GWZ6LPFBA0VI\u002fkLg5UEAuW2dTIDZQQE6We\u002f1gN1BADiPO1HU8UEBgsURvCiVQQNnxeL1oHFBAeVINmNMaUEBH4JN3YyZQQLUSHXZdL1BAyy3vohYmUEDvtVZq7CFQQO4TtIdFLFBAb3KNCZAwUEAK1rzT8jNQQOd0k\u002fd1PVBAlMU3869CUEAPRFiFtEpQQBqNGTR2T1BAZ53xffFJUECDJP0HolZQQA+PzDycZFBAgkvwG9liUEDT2vKZRVxQQMmHyellWFBAToDdwA9aUEBsxJtOlU1QQKmF9fPkW1BArRPZ\u002fydTUEDFnHfOXGBQQEZ43jo9VVBAUh28wHZXUED1iI9XOV5QQCRTcD4WX1BAEFubQv5mUEAmRr9L42FQQKcpfmN6ZVBAZ\u002f\u002fRcRRzUEDPqX2dyG9QQJrPmM3MclBAd6kJiRF3UEC\u002fxXnu839QQFhTvD6xflBAjhPTQ7xsUEAfrPcCEGlQQDkxHLaKb1BAzRn2IKlyUEDuHRyJ42dQQE+Fy2wIYlBAXSeiHb+nT0A2VM4PChxPQPLPLfBs109Ah29Az08ZUEBoXzd0TCtQQMILCbXyJlBAoQFpvSdVUEBdDuRuCmtQQCqwfG2oclBAv4Y7cn9yUEDDVr+IrGxQQEU4HEz5eFBA9DwT9d1rUEBS5DnwpHVQQIBALSddeFBAP\u002f+goqhwUEA+WAijAD9QQI790dwvG1BAiEfi5ekdUEBn5cn7mXVQQBKNaujRd1BAMiKsIYyFUEBHFTBHcIhQQJ5Q\u002fNbWh1BANVeTyPqNUEByeSBwrJRQQF6whlExoFBAwOROAj6RUECz+rhw\u002f6FQQMzwXVJOnlBAWJSOSTGZUEDzEYRt\u002fKhQQDyJ5\u002fA5mVBAr8zfrYGdUEDKSay1hZlQQMCQevTrqlBAEnK1gNakUED1wAEMz65QQEtACqZzqlBAlM1mH3WmUEAf9I1kZrBQQL\u002f+uaIzn1BAiTp7gJGxUEC0m65hJcBQQKML4uodpVBA57A1OuueUEDaYPrBLapQQKGEV5otolBAeZx5pIeuUECdNGhDWaxQQDKZhdFHtVBACqzz2nLEUECIBN92mcRQQAM9N+HcxFBAS8FD5kTBUECIHoTCWLtQQCfH131Lx1BAH2wMldrNUEBwmImea7BQQNbLjAperFBAIDt31DvDUEC1xIhMUrtQQHaZ7UyZv1BAZiuSI9u+UEB31tHlC7RQQJchCj2NuVBA73\u002fT\u002fdS4UEC9IYWZU6lQQMQRWsXRrFBA"},"type":"scatter","xaxis":"x5","yaxis":"y5"},{"hovertemplate":"Emp\u002fPop: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#54A24B","width":2},"mode":"lines","name":"Employment\u002fPop Ratio","x":["Jan 2015","Feb 2015","Mar 2015","Apr 2015","May 2015","Jun 2015","Jul 2015","Aug 2015","Sep 2015","Oct 2015","Nov 2015","Dec 2015","Jan 2016","Feb 2016","Mar 2016","Apr 2016","May 2016","Jun 2016","Jul 2016","Aug 2016","Sep 2016","Oct 2016","Nov 2016","Dec 2016","Jan 2017","Feb 2017","Mar 2017","Apr 2017","May 2017","Jun 2017","Jul 2017","Aug 2017","Sep 2017","Oct 2017","Nov 2017","Dec 2017","Jan 2018","Feb 2018","Mar 2018","Apr 2018","May 2018","Jun 2018","Jul 2018","Aug 2018","Sep 2018","Oct 2018","Nov 2018","Dec 2018","Jan 2019","Feb 2019","Mar 2019","Apr 2019","May 2019","Jun 2019","Jul 2019","Aug 2019","Sep 2019","Oct 2019","Nov 2019","Dec 2019","Jan 2020","Feb 2020","Mar 2020","Apr 2020","May 2020","Jun 2020","Jul 2020","Aug 2020","Sep 2020","Oct 2020","Nov 2020","Dec 2020","Jan 2021","Feb 2021","Mar 2021","Apr 2021","May 2021","Jun 2021","Jul 2021","Aug 2021","Sep 2021","Oct 2021","Nov 2021","Dec 2021","Jan 2022","Feb 2022","Mar 2022","Apr 2022","May 2022","Jun 2022","Jul 2022","Aug 2022","Sep 2022","Oct 2022","Nov 2022","Dec 2022","Jan 2023","Feb 2023","Mar 2023","Apr 2023","May 2023","Jun 2023","Jul 2023","Aug 2023","Sep 2023","Oct 2023","Nov 2023","Dec 2023","Jan 2024","Feb 2024","Mar 2024","Apr 2024","May 2024","Jun 2024","Jul 2024","Aug 2024","Sep 2024","Oct 2024","Nov 2024","Dec 2024","Jan 2025","Feb 2025","Mar 2025","Apr 2025","May 2025","Jun 2025","Jul 2025","Aug 2025","Sep 2025","Oct 2025","Nov 2025","Dec 2025"],"y":{"dtype":"f8","bdata":"IlQlod9TTkAEBb27PnROQLVgd\u002fSedE5AiIYgYt5rTkBXch38p39OQN2lgd04c05Au+2lndh\u002fTkC\u002fRJtnFXlOQPYOljVafE5A2F5upKqmTkB9btNl0rNOQLs\u002fg\u002fJjtU5A0n4Y3x+pTkBo78ZhNKdOQEJGmz4Wo05Af1TcG3CeTkBfykQ6UZFOQOyA8\u002fvhlU5A\u002fPn4fHufTkDMkM\u002fQ5HlOQBBTpsGCZU5AXddYVz9oTkD8qdDE5G9OQHxMQQpge05AnOc+7\u002fx1TkCKUxCwFF1OQAXtH1VedE5AKLcvmCaQTkCDktmLrptOQAWR+wxep05A25pbvoGyTkDX8rFYFshOQLxoPM+n1k5Aco1LLFvRTkBBqx\u002fdAOVOQK8DjNM18k5A5mkrvOz1TkDq4InuE+VOQIgYCjPI4U5A6hiA283jTkDWNgcAddVOQO5AvgBS+E5AJkL6WIfrTkBuMzbw+ghPQGRQt\u002f28Bk9AtqfcK5AMT0AqCxXSUBBPQKRw2t8bGk9A0QeJvP4lT0BL1yM\u002fKCFPQDgxoO5uH09An82qz1UuT0AgBEd2YypPQDqoabyZKk9AS2hgHhExT0AUI40Cq0NPQHgr6EnbQ09A808V+K8bT0B2\u002faPrmR9PQLpiTunDN09AKyjSHisrT0BjNcjqdyJPQAbVaVHdD09AkcPUVJ6oTUDMaQU8n+9MQCUy\u002fyo4ek1A7o61VBjNTUD9owyo+SNOQLZov70EEU5AY6gWU2FlTkDdjU8S3JlOQJH4cCQrvk5AVI1\u002fGznUTkB00CUceu1OQOKjUcOvE09A4Mz5cxsLT0AJvzf61jxPQJRhw3ABSU9AbFwgvThTT0BT67sqaQFPQD5ORehvsk5AHZJ7NgKMTkBQy6wxKmVPQKQ2s46RjU9AsvHDtZiqT0ApvSXvUrtPQDN1LvcPv09AkBX8NkTUT0B+4r7dK9tPQPTRFMeiBlBAzhpZhY\u002f9T0AzrvLjswtQQHth+KkmBVBAx+kUeUwHUEB8CuMbSBNQQCQtMo2oA1BAoA4SP5IBUEDVp4cuCQBQQKnUcLr6EVBA7CdK3zcGUEB07CRLuxVQQKyWz002FFBADz45r9YHUECfaKppDxNQQL7UU9SuB1BAz+dxUjcQUEA2ZDTZ3BdQQHQAzM4F909AVjdqxwXhT0CCzZQxmQpQQDpbQGi9+U9AlnasSgn+T0DxnfsfngFQQKlkY9KdCFBAidftmu0PUEA\u002f7Ql1RRNQQIOW4JpcGFBAWNxFufARUEC88HuCIRNQQPDvGpH7G1BAIeiJY3QcUED7vk25oQJQQPofiSwM\u002fk9AFqcY7+ATUEBx8xmSywtQQAG1\u002f55rBlBA25N2WYIIUEB6uZkbnfxPQAuOmsiv9k9AbZ4TEE3\u002fT0ArKqjJCONPQAyU0jsu+09A"},"type":"scatter","xaxis":"x5","yaxis":"y5"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"xaxis":{"anchor":"y","domain":[0.0,0.45999999999999996],"tickangle":-45,"dtick":4},"yaxis":{"anchor":"x","domain":[0.5900000000000001,1.0],"title":{"text":"ppts"},"zeroline":true,"zerolinewidth":1},"xaxis2":{"anchor":"y2","domain":[0.54,0.9999999999999999],"tickangle":-45,"dtick":4},"yaxis2":{"anchor":"x2","domain":[0.5900000000000001,1.0],"title":{"text":"A$bn"},"zeroline":true,"zerolinewidth":1},"xaxis3":{"anchor":"y3","domain":[0.0,0.27999999999999997],"tickangle":-45,"dtick":4},"yaxis3":{"anchor":"x3","domain":[0.0,0.41000000000000003],"title":{"text":"%"},"zeroline":true,"zerolinewidth":1},"xaxis4":{"anchor":"y4","domain":[0.36,0.64],"tickangle":-45,"dtick":12},"yaxis4":{"anchor":"x4","domain":[0.0,0.41000000000000003],"title":{"text":"%"},"zeroline":true,"zerolinewidth":1},"xaxis5":{"anchor":"y5","domain":[0.72,0.9999999999999999],"tickangle":-45,"dtick":12},"yaxis5":{"anchor":"x5","domain":[0.0,0.41000000000000003],"title":{"text":"%"}},"annotations":[{"font":{"size":16},"showarrow":false,"text":"Contributions to GDP Growth","x":0.22999999999999998,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Current Account Balance","x":0.77,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Inflation","x":0.13999999999999999,"xanchor":"center","xref":"paper","y":0.41000000000000003,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Unemployment Rate","x":0.5,"xanchor":"center","xref":"paper","y":0.41000000000000003,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Participation & Employment","x":0.8599999999999999,"xanchor":"center","xref":"paper","y":0.41000000000000003,"yanchor":"bottom","yref":"paper"},{"font":{"color":"gray","size":10},"showarrow":false,"text":"Source: ABS National Accounts, Balance of Payments, Labour Force; RBA Statistical Table G1","x":0.5,"xref":"paper","y":-0.105,"yref":"paper"}],"shapes":[{"fillcolor":"rgba(0,128,0,0.1)","line":{"width":0},"type":"rect","x0":0,"x1":1,"xref":"x3 domain","y0":2,"y1":3,"yref":"y3"},{"line":{"color":"green","dash":"dash","width":1},"type":"line","x0":0,"x1":1,"xref":"x3 domain","y0":2,"y1":2,"yref":"y3"},{"line":{"color":"green","dash":"dash","width":1},"type":"line","x0":0,"x1":1,"xref":"x3 domain","y0":3,"y1":3,"yref":"y3"}],"margin":{"l":70,"r":50,"t":90,"b":100},"barmode":"relative","hovermode":"x unified","height":950,"width":1400,"showlegend":false},                        {"responsive": true}                    )                };            </script>        </div>
+            </div>
+            <div class="insights-box">
+                <h3>GDP</h3>
+<ul>
+<li>GDP growth has been essentially flat for at least the past 10 years</li>
+<li>GDP growth has become less predictable from one quarter to the next</li>
+</ul>
+<h3>Current Account</h3>
+<ul>
+<li>CA balance has stabilised — recent quarterly variation is well below its historical norm</li>
+<li>CA balance movements have become more persistent — each change tends to stick rather than reverse</li>
+</ul>
+<h3>Inflation</h3>
+<ul>
+<li>Trimmed mean inflation (3.4%) remains above the RBA's 2-3% target band</li>
+<li>Trimmed mean inflation has stabilised — recent quarterly variation is well below its historical norm</li>
+<li>Inflation's year-ended rate overstates current momentum — recent quarterly changes have been more moderate</li>
+</ul>
+<h3>Labour Market</h3>
+<ul>
+<li>Participation rate has been essentially flat for the past 26 months</li>
+</ul>
+            </div>
+        </div>
+        <div id="tab-trade" class="tab-content">
+            <div class="trade-chart-wrap" style="max-width: 1000px; margin: 0 auto; padding: 20px 0;">
+                <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
+                    <div>                            <div id="9a0b578a-3838-44f6-a6e1-733a3702e53c" class="plotly-graph-div" style="height:450px; width:1000px;"></div>            <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("9a0b578a-3838-44f6-a6e1-733a3702e53c")) {                    Plotly.newPlot(                        "9a0b578a-3838-44f6-a6e1-733a3702e53c",                        [{"hovertemplate":"Goods Balance: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#72B7B2","opacity":0.45},"name":"Goods Balance","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"QIlBYOXQA8DsfD81XnogwODO91PjJRnAgD81XrqJIMBoEoPAyiEdwIjAyqFFthXAIIXrUbgeCsDgJAaBlUMfQNB46SYxiBVAQArXo3A9DEBANV66SQwNQAAxCKwcWvg\u002fYBKDwMqhCUBQ46WbxCASQAiBlUOLbCJA+Knx0k1iJkBgZmZmZiYqQDQzMzMzkzNA\u002fKnx0k1iNUBQjZduEsMsQEw3iUFg5TFAIIXrUbgeMUDIILByaJEiQCAGgZVDCyxAMN0kBoHVNUAkBoGVQ6s8QFyPwvUoXEJAILByaJGtOkCEwMqhRXY\u002fQKZwPQrXw0hAppvEILDiQ0CqHFpkO69EQML1KFyPgkNAQIts5\u002fvJP0BgukkMAms5QIyXbhKDID1AVLgehetRNUB4kxgEVm4wQJDtfD813itA8Hw\u002fNV56LkDoJjEIrJwqQKgcWmQ7HydAeJMYBFZOJkA="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"Goods Credits: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#54A24B","width":2},"mode":"lines","name":"Goods Credits","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"VOOlm8RQUEA9CtejcD1OQOF6FK5HAVBAAAAAAABgTkAlBoGVQ1tNQHWTGARWPk5AmpmZmZnZT0B3vp8aL\u002f1SQFCNl24SS1NAx0s3iUGoUkDJdr6fGs9SQBSuR+F6xFJAAiuHFtk+VECHFtnO9xNVQPT91HjpLlZAaJHtfD\u002fVVkCTGARWDlVXQO58PzVe8lhANV66SQySWUB1kxgEVsZXQCGwcmiRtVdAf2q8dJOoVkB56SYxCExVQI\u002fC9Shcd1dARIts5\u002fvJWUC28\u002f3UeFFcQNV46SYxmF5AYhBYObTIXUD+1HjpJtVgQBsv3SQGmWNAVg4tsp0HY0CR7Xw\u002fNe5iQNejcD0Kg2JAke18PzViYUDTTWIQWOVgQLByaJHtGGFAbxKDwMrZYEDufD81XiJgQNNNYhBYUV9AeekmMQj0X0C4HoXrUUBgQDEIrBxaIGBAH4XrUbhGYEA="},"type":"scatter","xaxis":"x","yaxis":"y"},{"hovertemplate":"Goods Debits: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#E45756","width":2},"mode":"lines","name":"Goods Debits","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"nu+nxkvvUMC8dJMYBC5RwM\u002f3U+Olk1HA8KfGSzdBUcA5tMh2vn9QwMP1KFyPelDA9ihcj8K9UMApXI\u002fC9QhRwMP1KFyP8lHAdZMYBFbGUcAfhetRuOZRwFCNl24SY1LAbxKDwMpxU8BSuB6F6\u002fFTwNNNYhBY4VPAKVyPwvUIVMDHSzeJQRBUwCGwcmiRDVTAtvP91Hg5VMDLoUW28y1UwE5iEFg5PFPAN4lBYOVgUsBg5dAi2\u002flSwMuhRbbz9VPA+FPjpZtUVMAtsp3vpyZVwCcxCKwcalXAWmQ7308dV8Db+X5qvMxZwOOlm8Qg0FrA2c73U+MdXMDNzMzMzIRbwM3MzMzMRFvAUrgehevRWsAOLbKd729bwH0\u002fNV666VrAyXa+nxpfXMD+1HjpJilcwCGwcmiR1VvA2\u002fl+arwkXMCTGARWDi1dwM3MzMzMXF3Az\u002fdT46XDXcA="},"type":"scatter","xaxis":"x","yaxis":"y"},{"hovertemplate":"Services Balance: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#B279A2","opacity":0.45},"name":"Services Balance","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"aGZmZmZmBsAIK4cW2c4JwKjGSzeJQQvAiEFg5dAiDcB46SYxCKwEwCiHFtnO9wbA+NJNYhBYAMAAKVyPwvX+v7jIdr6fGgLAgBbZzvdT\u002fb+Q7Xw\u002fNV4CwIhs5\u002fup8QfAGNnO91PjCcBgEFg5tMgJwKAaL90kBgvA2KNwPQrXCsBo5\u002fup8dIEwJjvp8ZLNwPAOF66SQwCAcCgRbbz\u002fdT+vxgv3SQGgQ3ANLTIdr6fC0A8CtejcD0BQJgaL90kBvs\u002fIFpkO99P7T9gjZduEoPQP7Cd76fGSwHAEFg5tMh2EsCkm8QgsPIcwCYxCKwcWiDA\u002ftR46SaxJsCmm8QgsHIlwFhkO99PzSDAyqFFtvP9IsBkEFg5tEgjwHJoke18fyHAsHJoke28IMBoZmZmZuYhwMyhRbbzfSTAuPP91HjpIsDISzeJQSAiwKzx0k1ikCHAiBbZzvdTIcA="},"type":"bar","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"Services Credits: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#4C78A8","width":2},"mode":"lines","name":"Services Credits","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"z\u002fdT46UbMkCLbOf7qfExQGQ730+NdzJAy6FFtvMdM0AlBoGVQwszQJhuEoPA6jJAj8L1KFzPM0Dn+6nx0i00QLByaJHtnDRAxSCwcmixNUCcxCCwckg1QMuhRbbzXTVAObTIdr5fNkAj2\u002fl+avw2QKAaL90kZjdAXrpJDAILOEAj2\u002fl+alw4QHe+nxovPTlArBxaZDvfOUBQjZduEoM6QP7UeOkm0TZAFK5H4XpUMUCuR+F6FK4vQAwCK4cWmTBAUrgeheuRL0DHSzeJQeAvQF66SQwCay1AYOXQIts5LUD8qfHSTWIvQMdLN4lBADJAJzEIrBw6NECDwMqhRTY3QJ7vp8ZLtzlAke18PzVePED+1HjpJtE+QBsv3SQGwT5AVOOlm8QAP0BU46WbxABAQAAAAAAAwD9ADAIrhxapQEDn+6nx0t1AQAisHFpk20FAukkMAisHQkA="},"type":"scatter","xaxis":"x2","yaxis":"y2"},{"hovertemplate":"Services Debits: $%{y:.1f}bn\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#F58518","width":2},"mode":"lines","name":"Services Debits","x":["2015-Q1","2015-Q2","2015-Q3","2015-Q4","2016-Q1","2016-Q2","2016-Q3","2016-Q4","2017-Q1","2017-Q2","2017-Q3","2017-Q4","2018-Q1","2018-Q2","2018-Q3","2018-Q4","2019-Q1","2019-Q2","2019-Q3","2019-Q4","2020-Q1","2020-Q2","2020-Q3","2020-Q4","2021-Q1","2021-Q2","2021-Q3","2021-Q4","2022-Q1","2022-Q2","2022-Q3","2022-Q4","2023-Q1","2023-Q2","2023-Q3","2023-Q4","2024-Q1","2024-Q2","2024-Q3","2024-Q4","2025-Q1","2025-Q2","2025-Q3"],"y":{"dtype":"f8","bdata":"nMQgsHLoNMDsUbgehSs1wDm0yHa+3zXA\u002fKnx0k3CNsBU46WbxKA1wH0\u002fNV66yTXA7nw\u002fNV7aNcB3vp8aLx02wMdLN4lB4DbALbKd76eGN8BOYhBYOZQ3wFyPwvUoXDjAXI\u002fC9SicOcAv3SQGgTU6wPT91HjpxjrA2c73U+NlO8AQWDm0yPY6wGq8dJMYpDvAc2iR7Xz\u002fO8Cq8dJNYnA8wOF6FK5HgTrAGy\u002fdJAbBK8AfhetRuF4rwMUgsHJo0S3AsHJoke28LcBcj8L1KFwvwOXQItv53jDAtMh2vp86M8Dn+6nx0u02wFpkO99PLTrAppvEILCSP8ArhxbZzvdAwOXQItv5DkHAO99PjZfuQsCYbhKDwDpEwKrx0k1iwEPAVg4tsp2vQ8DufD81XnpEwHNoke18\u002f0TA+n5qvHRjRcDZzvdT42VFwHNoke18P0bAXI\u002fC9ShcRsA="},"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"xaxis":{"anchor":"y","domain":[0.0,0.46],"tickangle":-45,"dtick":4},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"A$ Billion"},"zeroline":true,"zerolinewidth":1,"zerolinecolor":"gray"},"xaxis2":{"anchor":"y2","domain":[0.54,1.0],"tickangle":-45,"dtick":4},"yaxis2":{"anchor":"x2","domain":[0.0,1.0],"title":{},"zeroline":true,"zerolinewidth":1,"zerolinecolor":"gray"},"annotations":[{"font":{"size":16},"showarrow":false,"text":"Goods","x":0.23,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Services","x":0.77,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"color":"gray","size":10},"showarrow":false,"text":"Source: ABS Balance of Payments (Cat. 5302.0)","x":0,"xref":"paper","y":-0.28,"yref":"paper"}],"margin":{"l":60,"r":40,"t":100,"b":110},"barmode":"relative","showlegend":false,"hovermode":"x unified","height":450,"width":1000},                        {"responsive": true}                    )                };            </script>        </div>
+                </div>
+            </div>
+            
+            <div class="insights-box">
+                <h3>Trade Balance</h3>
+<ul>
+<li>Goods Balance has been trending down over the past 5 quarters</li>
+</ul>
+            </div>
+            <h2 class="trade-section-heading">Goods Trade</h2>
+            <div class="trade-tables-grid">
+<div class="trade-table-wrap">
+            <h3>Top Goods Exports by Commodity</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2025Q4<br>($bn)</th>
+                            <th class="tt-num-hdr">Trail 4Q<br>($bn)</th>
+                            <th class="tt-num-hdr">QoQ<br>(%)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="Iron ore and concentrates">Iron ore and concentrates</td><td class="tt-num">$32.7</td><td class="tt-num">$121.0</td><td class="tt-num" style="color:#27ae60">+11.1%</td><td class="tt-num" style="color:#e74c3c">-2.8%</td><td class="tt-num">23.1%</td></tr>
+<tr><td class="tt-name" title="Coal">Coal</td><td class="tt-num">$17.6</td><td class="tt-num">$64.3</td><td class="tt-num" style="color:#27ae60">+9.3%</td><td class="tt-num" style="color:#e74c3c">-24.5%</td><td class="tt-num">12.3%</td></tr>
+<tr><td class="tt-name" title="Natural gas">Natural gas</td><td class="tt-num">$14.3</td><td class="tt-num">$59.7</td><td class="tt-num" style="color:#27ae60">+0.1%</td><td class="tt-num" style="color:#e74c3c">-11.5%</td><td class="tt-num">11.4%</td></tr>
+<tr><td class="tt-name" title="Gold, non-monetary">Gold, non-monetary</td><td class="tt-num">$16.5</td><td class="tt-num">$59.6</td><td class="tt-num" style="color:#27ae60">+14.3%</td><td class="tt-num" style="color:#27ae60">+66.8%</td><td class="tt-num">11.4%</td></tr>
+<tr><td class="tt-name" title="Meat of bovine animals, fresh, chilled or frozen">Meat of bovine animals, fresh, chilled or frozen</td><td class="tt-num">$5.4</td><td class="tt-num">$18.7</td><td class="tt-num" style="color:#27ae60">+5.2%</td><td class="tt-num" style="color:#27ae60">+33.5%</td><td class="tt-num">3.6%</td></tr>
+<tr><td class="tt-name" title="Aluminium ores and concentrates">Aluminium ores and concentrates</td><td class="tt-num">$2.7</td><td class="tt-num">$13.2</td><td class="tt-num" style="color:#e74c3c">-7.5%</td><td class="tt-num" style="color:#27ae60">+1.9%</td><td class="tt-num">2.5%</td></tr>
+<tr><td class="tt-name" title="Wheat and meslin, unmilled">Wheat and meslin, unmilled</td><td class="tt-num">$2.0</td><td class="tt-num">$9.9</td><td class="tt-num" style="color:#e74c3c">-16.2%</td><td class="tt-num" style="color:#27ae60">+17.1%</td><td class="tt-num">1.9%</td></tr>
+<tr><td class="tt-name" title="Petroleum oils and oils obtained from bituminous minerals, crude">Petroleum oils and oils obtained from bituminous minerals, crude</td><td class="tt-num">$1.9</td><td class="tt-num">$9.2</td><td class="tt-num" style="color:#e74c3c">-16.7%</td><td class="tt-num" style="color:#e74c3c">-13.7%</td><td class="tt-num">1.8%</td></tr>
+<tr><td class="tt-name" title="Meat and edible meat offal, fresh, chilled or frozen">Meat and edible meat offal, fresh, chilled or frozen</td><td class="tt-num">$2.4</td><td class="tt-num">$8.3</td><td class="tt-num" style="color:#27ae60">+24.4%</td><td class="tt-num" style="color:#27ae60">+16.7%</td><td class="tt-num">1.6%</td></tr>
+<tr><td class="tt-name" title="Copper ores and concentrates, copper mattes and cement copper">Copper ores and concentrates, copper mattes and cement copper</td><td class="tt-num">$1.8</td><td class="tt-num">$6.9</td><td class="tt-num" style="color:#27ae60">+3.8%</td><td class="tt-num" style="color:#27ae60">+5.1%</td><td class="tt-num">1.3%</td></tr>
+<tr><td class="tt-name" title="Copper">Copper</td><td class="tt-num">$1.6</td><td class="tt-num">$6.2</td><td class="tt-num" style="color:#e74c3c">-3.8%</td><td class="tt-num" style="color:#27ae60">+11.8%</td><td class="tt-num">1.2%</td></tr>
+<tr><td class="tt-name" title="Aluminium">Aluminium</td><td class="tt-num">$1.7</td><td class="tt-num">$6.2</td><td class="tt-num" style="color:#27ae60">+24.3%</td><td class="tt-num" style="color:#27ae60">+8.5%</td><td class="tt-num">1.2%</td></tr>
+<tr><td class="tt-name" title="Ores and concentrates of base metals">Ores and concentrates of base metals</td><td class="tt-num">$1.5</td><td class="tt-num">$5.4</td><td class="tt-num" style="color:#27ae60">+29.5%</td><td class="tt-num" style="color:#27ae60">+26.7%</td><td class="tt-num">1.0%</td></tr>
+<tr><td class="tt-name" title="Petroleum oils & oils obtained from bituminous minerals; preps nes, containing by weight 70% or more of petroleum oils or of oils obtained from bituminous minerals, these oils being the constituents of the preparations; waste oils">Petroleum oils & oils obtained from bituminous minerals; preps nes, containing by weight 70% or more of petroleum oils or of oils obtained from bituminous minerals, these oils being the constituents of the preparations; waste oils</td><td class="tt-num">$1.4</td><td class="tt-num">$5.0</td><td class="tt-num" style="color:#27ae60">+14.7%</td><td class="tt-num" style="color:#e74c3c">-1.4%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Ores and concentrates of precious metals; waste, scrap and sweepings of precious metals">Ores and concentrates of precious metals; waste, scrap and sweepings of precious metals</td><td class="tt-num">$1.3</td><td class="tt-num">$4.7</td><td class="tt-num" style="color:#27ae60">+38.1%</td><td class="tt-num" style="color:#27ae60">+89.1%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Crude minerals">Crude minerals</td><td class="tt-num">$1.4</td><td class="tt-num">$4.6</td><td class="tt-num" style="color:#27ae60">+24.3%</td><td class="tt-num" style="color:#e74c3c">-5.1%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Oil-seeds and oleaginous fruits of a kind used for the extraction of soft fixed vegetable oils">Oil-seeds and oleaginous fruits of a kind used for the extraction of soft fixed vegetable oils</td><td class="tt-num">$1.1</td><td class="tt-num">$4.6</td><td class="tt-num" style="color:#27ae60">+95.4%</td><td class="tt-num" style="color:#e74c3c">-7.8%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Non-ferrous base metal waste and scrap">Non-ferrous base metal waste and scrap</td><td class="tt-num">$1.6</td><td class="tt-num">$4.6</td><td class="tt-num" style="color:#27ae60">+31.2%</td><td class="tt-num" style="color:#27ae60">+41.9%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Combined confidential items excluding some of SITC 28099 and some of SITC 51099">Combined confidential items excluding some of SITC 28099 and some of SITC 51099</td><td class="tt-num">$1.2</td><td class="tt-num">$4.5</td><td class="tt-num" style="color:#e74c3c">-3.6%</td><td class="tt-num" style="color:#e74c3c">-39.9%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Sum of AHECC Chapter 26 codes confidentialised with Broad Commodity Details restriction">Sum of AHECC Chapter 26 codes confidentialised with Broad Commodity Details restriction</td><td class="tt-num">$1.3</td><td class="tt-num">$4.3</td><td class="tt-num" style="color:#27ae60">+11.2%</td><td class="tt-num" style="color:#27ae60">+4.1%</td><td class="tt-num">0.8%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS Merchandise Trade (MERCH_EXP / MERCH_IMP)</p>
+        </div><div class="trade-table-wrap">
+            <h3>Top Goods Imports by Commodity</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2025Q4<br>($bn)</th>
+                            <th class="tt-num-hdr">Trail 4Q<br>($bn)</th>
+                            <th class="tt-num-hdr">QoQ<br>(%)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="Petroleum oils & oils obtained from bituminous minerals; preps nes, containing by weight 70% or more of petroleum oils or of oils obtained from bituminous minerals, these oils being the constituents of the preparations; waste oils">Petroleum oils & oils obtained from bituminous minerals; preps nes, containing by weight 70% or more of petroleum oils or of oils obtained from bituminous minerals, these oils being the constituents of the preparations; waste oils</td><td class="tt-num">$11.4</td><td class="tt-num">$44.1</td><td class="tt-num" style="color:#e74c3c">-1.2%</td><td class="tt-num" style="color:#e74c3c">-6.8%</td><td class="tt-num">9.6%</td></tr>
+<tr><td class="tt-name" title="Motor cars and other motor vehicles principally designed for the transport of persons">Motor cars and other motor vehicles principally designed for the transport of persons</td><td class="tt-num">$8.9</td><td class="tt-num">$34.5</td><td class="tt-num" style="color:#27ae60">+5.7%</td><td class="tt-num" style="color:#e74c3c">-3.6%</td><td class="tt-num">7.5%</td></tr>
+<tr><td class="tt-name" title="Gold, non-monetary">Gold, non-monetary</td><td class="tt-num">$7.2</td><td class="tt-num">$20.6</td><td class="tt-num" style="color:#27ae60">+72.7%</td><td class="tt-num" style="color:#27ae60">+108.7%</td><td class="tt-num">4.5%</td></tr>
+<tr><td class="tt-name" title="Telecommunications equipment, nes and parts, nes and accessories of apparatus falling within division 76">Telecommunications equipment, nes and parts, nes and accessories of apparatus falling within division 76</td><td class="tt-num">$6.1</td><td class="tt-num">$18.7</td><td class="tt-num" style="color:#27ae60">+37.4%</td><td class="tt-num" style="color:#27ae60">+9.6%</td><td class="tt-num">4.1%</td></tr>
+<tr><td class="tt-name" title="Automatic data processing machines and units thereof, magnetic or optical readers, machines for transcribing data onto data media in coded form and machines for processing such data">Automatic data processing machines and units thereof, magnetic or optical readers, machines for transcribing data onto data media in coded form and machines for processing such data</td><td class="tt-num">$4.3</td><td class="tt-num">$16.6</td><td class="tt-num" style="color:#e74c3c">-14.5%</td><td class="tt-num" style="color:#27ae60">+30.9%</td><td class="tt-num">3.6%</td></tr>
+<tr><td class="tt-name" title="Motor vehicles for the transport of goods and special purpose motor vehicles">Motor vehicles for the transport of goods and special purpose motor vehicles</td><td class="tt-num">$3.6</td><td class="tt-num">$15.8</td><td class="tt-num" style="color:#e74c3c">-12.3%</td><td class="tt-num" style="color:#e74c3c">-6.0%</td><td class="tt-num">3.4%</td></tr>
+<tr><td class="tt-name" title="Electrical machinery and apparatus">Electrical machinery and apparatus</td><td class="tt-num">$4.4</td><td class="tt-num">$12.6</td><td class="tt-num" style="color:#27ae60">+31.0%</td><td class="tt-num" style="color:#27ae60">+26.8%</td><td class="tt-num">2.7%</td></tr>
+<tr><td class="tt-name" title="Medicaments">Medicaments</td><td class="tt-num">$2.8</td><td class="tt-num">$10.7</td><td class="tt-num" style="color:#27ae60">+4.2%</td><td class="tt-num" style="color:#27ae60">+18.1%</td><td class="tt-num">2.3%</td></tr>
+<tr><td class="tt-name" title="Medicinal and pharmaceutical products">Medicinal and pharmaceutical products</td><td class="tt-num">$2.0</td><td class="tt-num">$7.8</td><td class="tt-num" style="color:#27ae60">+0.5%</td><td class="tt-num" style="color:#e74c3c">-2.1%</td><td class="tt-num">1.7%</td></tr>
+<tr><td class="tt-name" title="Petroleum oils and oils obtained from bituminous minerals, crude">Petroleum oils and oils obtained from bituminous minerals, crude</td><td class="tt-num">$2.0</td><td class="tt-num">$7.4</td><td class="tt-num" style="color:#27ae60">+37.4%</td><td class="tt-num" style="color:#e74c3c">-4.4%</td><td class="tt-num">1.6%</td></tr>
+<tr><td class="tt-name" title="Civil engineering and contractors' plant and equipment and parts thereof">Civil engineering and contractors' plant and equipment and parts thereof</td><td class="tt-num">$1.7</td><td class="tt-num">$6.7</td><td class="tt-num" style="color:#e74c3c">-2.5%</td><td class="tt-num" style="color:#e74c3c">-4.6%</td><td class="tt-num">1.5%</td></tr>
+<tr><td class="tt-name" title="Furniture and parts thereof; bedding, mattresses, mattress supports, cushions and similar stuffed furnishings">Furniture and parts thereof; bedding, mattresses, mattress supports, cushions and similar stuffed furnishings</td><td class="tt-num">$1.8</td><td class="tt-num">$6.3</td><td class="tt-num" style="color:#27ae60">+15.6%</td><td class="tt-num" style="color:#27ae60">+5.9%</td><td class="tt-num">1.4%</td></tr>
+<tr><td class="tt-name" title="Baby carriages, toys, games and sporting goods">Baby carriages, toys, games and sporting goods</td><td class="tt-num">$1.8</td><td class="tt-num">$5.6</td><td class="tt-num" style="color:#27ae60">+8.4%</td><td class="tt-num" style="color:#27ae60">+15.3%</td><td class="tt-num">1.2%</td></tr>
+<tr><td class="tt-name" title="Household type electrical and non electrical equipment">Household type electrical and non electrical equipment</td><td class="tt-num">$1.4</td><td class="tt-num">$5.5</td><td class="tt-num" style="color:#27ae60">+6.3%</td><td class="tt-num" style="color:#27ae60">+4.0%</td><td class="tt-num">1.2%</td></tr>
+<tr><td class="tt-name" title="Heating and cooling equipment and parts thereof">Heating and cooling equipment and parts thereof</td><td class="tt-num">$1.6</td><td class="tt-num">$5.5</td><td class="tt-num" style="color:#27ae60">+17.5%</td><td class="tt-num" style="color:#e74c3c">-8.3%</td><td class="tt-num">1.2%</td></tr>
+<tr><td class="tt-name" title="Articles, nes, of plastics">Articles, nes, of plastics</td><td class="tt-num">$1.4</td><td class="tt-num">$5.2</td><td class="tt-num" style="color:#27ae60">+8.1%</td><td class="tt-num" style="color:#27ae60">+2.2%</td><td class="tt-num">1.1%</td></tr>
+<tr><td class="tt-name" title="Measuring, checking, analysing and controlling instruments and apparatus">Measuring, checking, analysing and controlling instruments and apparatus</td><td class="tt-num">$1.3</td><td class="tt-num">$5.2</td><td class="tt-num" style="color:#27ae60">+1.1%</td><td class="tt-num" style="color:#27ae60">+5.1%</td><td class="tt-num">1.1%</td></tr>
+<tr><td class="tt-name" title="Fertilisers">Fertilisers</td><td class="tt-num">$1.0</td><td class="tt-num">$5.1</td><td class="tt-num" style="color:#27ae60">+17.2%</td><td class="tt-num" style="color:#27ae60">+9.8%</td><td class="tt-num">1.1%</td></tr>
+<tr><td class="tt-name" title="Combined confidential items excluding some of SITC 28099 and some of SITC 51099">Combined confidential items excluding some of SITC 28099 and some of SITC 51099</td><td class="tt-num">$1.3</td><td class="tt-num">$4.9</td><td class="tt-num" style="color:#e74c3c">-38.0%</td><td class="tt-num" style="color:#27ae60">+39.6%</td><td class="tt-num">1.1%</td></tr>
+<tr><td class="tt-name" title="Instruments and appliances, nes, for medical, surgical, dental or veterinary purposes">Instruments and appliances, nes, for medical, surgical, dental or veterinary purposes</td><td class="tt-num">$1.3</td><td class="tt-num">$4.9</td><td class="tt-num" style="color:#27ae60">+1.8%</td><td class="tt-num" style="color:#27ae60">+6.6%</td><td class="tt-num">1.1%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS Merchandise Trade (MERCH_EXP / MERCH_IMP)</p>
+        </div><div class="trade-table-wrap">
+            <h3>Top Goods Export Partners</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2025Q4<br>($bn)</th>
+                            <th class="tt-num-hdr">Trail 4Q<br>($bn)</th>
+                            <th class="tt-num-hdr">QoQ<br>(%)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="China">China</td><td class="tt-num">$47.1</td><td class="tt-num">$175.8</td><td class="tt-num" style="color:#27ae60">+8.1%</td><td class="tt-num" style="color:#e74c3c">-1.6%</td><td class="tt-num">33.6%</td></tr>
+<tr><td class="tt-name" title="Japan">Japan</td><td class="tt-num">$15.3</td><td class="tt-num">$60.7</td><td class="tt-num" style="color:#e74c3c">-1.1%</td><td class="tt-num" style="color:#e74c3c">-14.0%</td><td class="tt-num">11.6%</td></tr>
+<tr><td class="tt-name" title="Korea, Republic of (South)">Korea, Republic of (South)</td><td class="tt-num">$12.2</td><td class="tt-num">$40.6</td><td class="tt-num" style="color:#27ae60">+29.4%</td><td class="tt-num" style="color:#27ae60">+6.4%</td><td class="tt-num">7.8%</td></tr>
+<tr><td class="tt-name" title="United States">United States</td><td class="tt-num">$7.0</td><td class="tt-num">$40.2</td><td class="tt-num" style="color:#e74c3c">-31.5%</td><td class="tt-num" style="color:#27ae60">+69.0%</td><td class="tt-num">7.7%</td></tr>
+<tr><td class="tt-name" title="United Kingdom, Channel Islands and Isle of Man, nfd">United Kingdom, Channel Islands and Isle of Man, nfd</td><td class="tt-num">$6.5</td><td class="tt-num">$21.6</td><td class="tt-num" style="color:#e74c3c">-0.4%</td><td class="tt-num" style="color:#27ae60">+124.6%</td><td class="tt-num">4.1%</td></tr>
+<tr><td class="tt-name" title="India">India</td><td class="tt-num">$6.4</td><td class="tt-num">$20.7</td><td class="tt-num" style="color:#27ae60">+33.8%</td><td class="tt-num" style="color:#e74c3c">-17.0%</td><td class="tt-num">4.0%</td></tr>
+<tr><td class="tt-name" title="Taiwan">Taiwan</td><td class="tt-num">$3.9</td><td class="tt-num">$15.3</td><td class="tt-num" style="color:#27ae60">+3.5%</td><td class="tt-num" style="color:#e74c3c">-17.3%</td><td class="tt-num">2.9%</td></tr>
+<tr><td class="tt-name" title="Singapore">Singapore</td><td class="tt-num">$4.2</td><td class="tt-num">$14.6</td><td class="tt-num" style="color:#27ae60">+26.9%</td><td class="tt-num" style="color:#e74c3c">-21.0%</td><td class="tt-num">2.8%</td></tr>
+<tr><td class="tt-name" title="Hong Kong">Hong Kong</td><td class="tt-num">$5.0</td><td class="tt-num">$13.5</td><td class="tt-num" style="color:#27ae60">+57.5%</td><td class="tt-num" style="color:#27ae60">+13.8%</td><td class="tt-num">2.6%</td></tr>
+<tr><td class="tt-name" title="New Zealand">New Zealand</td><td class="tt-num">$3.7</td><td class="tt-num">$13.1</td><td class="tt-num" style="color:#27ae60">+9.2%</td><td class="tt-num" style="color:#27ae60">+4.8%</td><td class="tt-num">2.5%</td></tr>
+<tr><td class="tt-name" title="Indonesia">Indonesia</td><td class="tt-num">$3.1</td><td class="tt-num">$12.2</td><td class="tt-num" style="color:#27ae60">+4.6%</td><td class="tt-num" style="color:#e74c3c">-4.1%</td><td class="tt-num">2.3%</td></tr>
+<tr><td class="tt-name" title="Malaysia">Malaysia</td><td class="tt-num">$3.0</td><td class="tt-num">$11.2</td><td class="tt-num" style="color:#27ae60">+13.6%</td><td class="tt-num" style="color:#27ae60">+3.8%</td><td class="tt-num">2.1%</td></tr>
+<tr><td class="tt-name" title="Vietnam">Vietnam</td><td class="tt-num">$2.6</td><td class="tt-num">$10.0</td><td class="tt-num" style="color:#27ae60">+10.7%</td><td class="tt-num" style="color:#e74c3c">-3.9%</td><td class="tt-num">1.9%</td></tr>
+<tr><td class="tt-name" title="Thailand">Thailand</td><td class="tt-num">$1.8</td><td class="tt-num">$7.1</td><td class="tt-num" style="color:#27ae60">+14.7%</td><td class="tt-num" style="color:#27ae60">+2.3%</td><td class="tt-num">1.4%</td></tr>
+<tr><td class="tt-name" title="UAE">UAE</td><td class="tt-num">$1.8</td><td class="tt-num">$6.2</td><td class="tt-num" style="color:#27ae60">+33.8%</td><td class="tt-num" style="color:#27ae60">+12.0%</td><td class="tt-num">1.2%</td></tr>
+<tr><td class="tt-name" title="No Country Details">No Country Details</td><td class="tt-num">$1.2</td><td class="tt-num">$4.5</td><td class="tt-num" style="color:#e74c3c">-3.6%</td><td class="tt-num" style="color:#e74c3c">-39.9%</td><td class="tt-num">0.9%</td></tr>
+<tr><td class="tt-name" title="Netherlands">Netherlands</td><td class="tt-num">$1.1</td><td class="tt-num">$4.2</td><td class="tt-num" style="color:#27ae60">+19.2%</td><td class="tt-num" style="color:#e74c3c">-20.1%</td><td class="tt-num">0.8%</td></tr>
+<tr><td class="tt-name" title="Canada">Canada</td><td class="tt-num">$1.3</td><td class="tt-num">$4.1</td><td class="tt-num" style="color:#27ae60">+12.2%</td><td class="tt-num" style="color:#27ae60">+31.9%</td><td class="tt-num">0.8%</td></tr>
+<tr><td class="tt-name" title="Germany">Germany</td><td class="tt-num">$1.1</td><td class="tt-num">$3.9</td><td class="tt-num" style="color:#27ae60">+51.1%</td><td class="tt-num" style="color:#27ae60">+16.9%</td><td class="tt-num">0.8%</td></tr>
+<tr><td class="tt-name" title="Ship and Aircraft Stores">Ship and Aircraft Stores</td><td class="tt-num">$0.9</td><td class="tt-num">$3.6</td><td class="tt-num" style="color:#27ae60">+1.7%</td><td class="tt-num" style="color:#e74c3c">-3.1%</td><td class="tt-num">0.7%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS Merchandise Trade (MERCH_EXP / MERCH_IMP)</p>
+        </div><div class="trade-table-wrap">
+            <h3>Top Goods Import Partners</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2025Q4<br>($bn)</th>
+                            <th class="tt-num-hdr">Trail 4Q<br>($bn)</th>
+                            <th class="tt-num-hdr">QoQ<br>(%)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="China">China</td><td class="tt-num">$35.9</td><td class="tt-num">$123.7</td><td class="tt-num" style="color:#27ae60">+15.4%</td><td class="tt-num" style="color:#27ae60">+12.2%</td><td class="tt-num">26.8%</td></tr>
+<tr><td class="tt-name" title="United States">United States</td><td class="tt-num">$12.5</td><td class="tt-num">$50.8</td><td class="tt-num" style="color:#27ae60">+0.0%</td><td class="tt-num" style="color:#27ae60">+0.4%</td><td class="tt-num">11.0%</td></tr>
+<tr><td class="tt-name" title="Japan">Japan</td><td class="tt-num">$6.5</td><td class="tt-num">$24.5</td><td class="tt-num" style="color:#27ae60">+4.0%</td><td class="tt-num" style="color:#e74c3c">-2.9%</td><td class="tt-num">5.3%</td></tr>
+<tr><td class="tt-name" title="Korea, Republic of (South)">Korea, Republic of (South)</td><td class="tt-num">$5.9</td><td class="tt-num">$22.0</td><td class="tt-num" style="color:#e74c3c">-3.1%</td><td class="tt-num" style="color:#e74c3c">-9.3%</td><td class="tt-num">4.8%</td></tr>
+<tr><td class="tt-name" title="Singapore">Singapore</td><td class="tt-num">$4.5</td><td class="tt-num">$20.0</td><td class="tt-num" style="color:#27ae60">+1.2%</td><td class="tt-num" style="color:#27ae60">+32.8%</td><td class="tt-num">4.3%</td></tr>
+<tr><td class="tt-name" title="Thailand">Thailand</td><td class="tt-num">$5.4</td><td class="tt-num">$19.2</td><td class="tt-num" style="color:#27ae60">+18.7%</td><td class="tt-num" style="color:#e74c3c">-5.0%</td><td class="tt-num">4.2%</td></tr>
+<tr><td class="tt-name" title="Malaysia">Malaysia</td><td class="tt-num">$4.6</td><td class="tt-num">$18.6</td><td class="tt-num" style="color:#e74c3c">-8.3%</td><td class="tt-num" style="color:#27ae60">+7.7%</td><td class="tt-num">4.0%</td></tr>
+<tr><td class="tt-name" title="Germany">Germany</td><td class="tt-num">$4.5</td><td class="tt-num">$17.6</td><td class="tt-num" style="color:#e74c3c">-2.4%</td><td class="tt-num" style="color:#e74c3c">-4.4%</td><td class="tt-num">3.8%</td></tr>
+<tr><td class="tt-name" title="Vietnam">Vietnam</td><td class="tt-num">$3.8</td><td class="tt-num">$12.9</td><td class="tt-num" style="color:#27ae60">+14.1%</td><td class="tt-num" style="color:#27ae60">+9.7%</td><td class="tt-num">2.8%</td></tr>
+<tr><td class="tt-name" title="India">India</td><td class="tt-num">$2.9</td><td class="tt-num">$11.7</td><td class="tt-num" style="color:#27ae60">+16.7%</td><td class="tt-num" style="color:#27ae60">+2.1%</td><td class="tt-num">2.5%</td></tr>
+<tr><td class="tt-name" title="Italy (includes Holy See and San Marino)">Italy (includes Holy See and San Marino)</td><td class="tt-num">$3.1</td><td class="tt-num">$10.9</td><td class="tt-num" style="color:#27ae60">+17.2%</td><td class="tt-num" style="color:#27ae60">+15.3%</td><td class="tt-num">2.4%</td></tr>
+<tr><td class="tt-name" title="Taiwan">Taiwan</td><td class="tt-num">$2.0</td><td class="tt-num">$9.4</td><td class="tt-num" style="color:#e74c3c">-22.3%</td><td class="tt-num" style="color:#27ae60">+0.7%</td><td class="tt-num">2.0%</td></tr>
+<tr><td class="tt-name" title="New Zealand">New Zealand</td><td class="tt-num">$2.4</td><td class="tt-num">$8.3</td><td class="tt-num" style="color:#27ae60">+16.7%</td><td class="tt-num" style="color:#27ae60">+9.9%</td><td class="tt-num">1.8%</td></tr>
+<tr><td class="tt-name" title="United Kingdom, Channel Islands and Isle of Man, nfd">United Kingdom, Channel Islands and Isle of Man, nfd</td><td class="tt-num">$2.2</td><td class="tt-num">$8.2</td><td class="tt-num" style="color:#27ae60">+17.1%</td><td class="tt-num" style="color:#27ae60">+5.8%</td><td class="tt-num">1.8%</td></tr>
+<tr><td class="tt-name" title="France (includes Andorra and Monaco)">France (includes Andorra and Monaco)</td><td class="tt-num">$2.0</td><td class="tt-num">$7.4</td><td class="tt-num" style="color:#27ae60">+3.3%</td><td class="tt-num" style="color:#e74c3c">-3.1%</td><td class="tt-num">1.6%</td></tr>
+<tr><td class="tt-name" title="Indonesia">Indonesia</td><td class="tt-num">$1.6</td><td class="tt-num">$6.5</td><td class="tt-num" style="color:#e74c3c">-14.3%</td><td class="tt-num" style="color:#e74c3c">-23.2%</td><td class="tt-num">1.4%</td></tr>
+<tr><td class="tt-name" title="PNG">PNG</td><td class="tt-num">$1.6</td><td class="tt-num">$6.1</td><td class="tt-num" style="color:#27ae60">+11.2%</td><td class="tt-num" style="color:#27ae60">+51.2%</td><td class="tt-num">1.3%</td></tr>
+<tr><td class="tt-name" title="Mexico">Mexico</td><td class="tt-num">$1.2</td><td class="tt-num">$5.1</td><td class="tt-num" style="color:#e74c3c">-21.3%</td><td class="tt-num" style="color:#27ae60">+5.0%</td><td class="tt-num">1.1%</td></tr>
+<tr><td class="tt-name" title="No Country Details">No Country Details</td><td class="tt-num">$1.3</td><td class="tt-num">$4.9</td><td class="tt-num" style="color:#e74c3c">-38.0%</td><td class="tt-num" style="color:#27ae60">+39.6%</td><td class="tt-num">1.1%</td></tr>
+<tr><td class="tt-name" title="Canada">Canada</td><td class="tt-num">$1.6</td><td class="tt-num">$4.4</td><td class="tt-num" style="color:#27ae60">+67.5%</td><td class="tt-num" style="color:#27ae60">+17.7%</td><td class="tt-num">1.0%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS Merchandise Trade (MERCH_EXP / MERCH_IMP)</p>
+        </div></div>
+
+            
+            <div class="insights-box">
+                <h3>Commodities</h3>
+<ul>
+<li>Imports of Gold, non-monetary surged year-on-year (+108.7%) to $20.6b over the trailing 4 quarters</li>
+<li>Exports of Ores and concentrates of precious metals; waste, scrap and sweepings of precious metals surged year-on-year (+89.1%) to $4.7b over the trailing 4 quarters</li>
+<li>Exports of Gold, non-monetary surged year-on-year (+66.8%) to $59.6b over the trailing 4 quarters</li>
+<li>Exports of Petroleum oils and oils obtained from bituminous minerals, crude declined notably quarter-on-quarter (-16.7%) to $1.9b in 2025Q4</li>
+<li>Exports of Wheat and meslin, unmilled declined notably quarter-on-quarter (-16.2%) to $2.0b in 2025Q4</li>
+</ul><h3>Partners</h3>
+<ul>
+<li>Exports to United Kingdom, Channel Islands and Isle of Man, nfd surged year-on-year (+124.6%) to $21.6b over the trailing 4 quarters</li>
+<li>Imports from Singapore grew strongly year-on-year (+32.8%) to $20.0b over the trailing 4 quarters</li>
+<li>Imports from Taiwan fell sharply quarter-on-quarter (-22.3%) to $2.0b in 2025Q4</li>
+<li>Exports to United States fell sharply quarter-on-quarter (-31.5%) to $7.0b in 2025Q4</li>
+<li>Exports to Hong Kong surged quarter-on-quarter (+57.5%) to $5.0b in 2025Q4</li>
+</ul>
+            </div>
+            <h2 class="trade-section-heading">Services Trade</h2>
+            <div class="trade-tables-grid">
+<div class="trade-table-wrap">
+            <h3>Top Services Exports by Type</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2024<br>($bn)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="Travel Services">Travel Services</td><td class="tt-num">$78.5</td><td class="tt-num">$69.4</td><td class="tt-num" style="color:#27ae60">+13.1%</td><td class="tt-num">62.1%</td></tr>
+<tr><td class="tt-name" title="Other business services">Other business services</td><td class="tt-num">$15.8</td><td class="tt-num">$15.2</td><td class="tt-num" style="color:#27ae60">+3.6%</td><td class="tt-num">12.5%</td></tr>
+<tr><td class="tt-name" title="Charges for the use of intellectual property n.i.e">Charges for the use of intellectual property n.i.e</td><td class="tt-num">$9.5</td><td class="tt-num">$7.9</td><td class="tt-num" style="color:#27ae60">+19.8%</td><td class="tt-num">7.5%</td></tr>
+<tr><td class="tt-name" title="Transportation">Transportation</td><td class="tt-num">$7.9</td><td class="tt-num">$7.3</td><td class="tt-num" style="color:#27ae60">+8.5%</td><td class="tt-num">6.3%</td></tr>
+<tr><td class="tt-name" title="Financial Services">Financial Services</td><td class="tt-num">$4.8</td><td class="tt-num">$5.6</td><td class="tt-num" style="color:#e74c3c">-13.6%</td><td class="tt-num">3.8%</td></tr>
+<tr><td class="tt-name" title="Telecommunication, computer and information services">Telecommunication, computer and information services</td><td class="tt-num">$3.8</td><td class="tt-num">$3.7</td><td class="tt-num" style="color:#27ae60">+2.2%</td><td class="tt-num">3.0%</td></tr>
+<tr><td class="tt-name" title="Personal, cultural, and recreation services">Personal, cultural, and recreation services</td><td class="tt-num">$3.6</td><td class="tt-num">$3.7</td><td class="tt-num" style="color:#e74c3c">-2.7%</td><td class="tt-num">2.8%</td></tr>
+<tr><td class="tt-name" title="Insurance and Pension services">Insurance and Pension services</td><td class="tt-num">$1.0</td><td class="tt-num">$1.0</td><td class="tt-num" style="color:#27ae60">+1.1%</td><td class="tt-num">0.8%</td></tr>
+<tr><td class="tt-name" title="Government services n.i.e">Government services n.i.e</td><td class="tt-num">$1.0</td><td class="tt-num">$1.0</td><td class="tt-num" style="color:#27ae60">+2.9%</td><td class="tt-num">0.8%</td></tr>
+<tr><td class="tt-name" title="Construction">Construction</td><td class="tt-num">$0.4</td><td class="tt-num">$0.4</td><td class="tt-num" style="color:#e74c3c">-9.5%</td><td class="tt-num">0.3%</td></tr>
+<tr><td class="tt-name" title="Maintenance and repair n.i.e">Maintenance and repair n.i.e</td><td class="tt-num">$0.0</td><td class="tt-num">$0.0</td><td class="tt-num" style="color:#e74c3c">-13.2%</td><td class="tt-num">0.0%</td></tr>
+<tr><td class="tt-name" title="Manufacturing services on physical inputs owned by others">Manufacturing services on physical inputs owned by others</td><td class="tt-num">$0.0</td><td class="tt-num">$0.0</td><td class="tt-num">—</td><td class="tt-num">0.0%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS International Trade in Services (TRADE_SERV_CNTRY)</p>
+        </div><div class="trade-table-wrap">
+            <h3>Top Services Imports by Type</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2024<br>($bn)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="Travel Services">Travel Services</td><td class="tt-num">$69.1</td><td class="tt-num">$63.8</td><td class="tt-num" style="color:#27ae60">+8.3%</td><td class="tt-num">42.0%</td></tr>
+<tr><td class="tt-name" title="Other business services">Other business services</td><td class="tt-num">$29.7</td><td class="tt-num">$28.1</td><td class="tt-num" style="color:#27ae60">+5.7%</td><td class="tt-num">18.1%</td></tr>
+<tr><td class="tt-name" title="Transportation">Transportation</td><td class="tt-num">$27.6</td><td class="tt-num">$26.9</td><td class="tt-num" style="color:#27ae60">+2.7%</td><td class="tt-num">16.8%</td></tr>
+<tr><td class="tt-name" title="Charges for the use of intellectual property n.i.e">Charges for the use of intellectual property n.i.e</td><td class="tt-num">$16.5</td><td class="tt-num">$13.4</td><td class="tt-num" style="color:#27ae60">+23.2%</td><td class="tt-num">10.0%</td></tr>
+<tr><td class="tt-name" title="Telecommunication, computer and information services">Telecommunication, computer and information services</td><td class="tt-num">$7.5</td><td class="tt-num">$7.6</td><td class="tt-num" style="color:#e74c3c">-1.0%</td><td class="tt-num">4.6%</td></tr>
+<tr><td class="tt-name" title="Personal, cultural, and recreation services">Personal, cultural, and recreation services</td><td class="tt-num">$6.8</td><td class="tt-num">$6.1</td><td class="tt-num" style="color:#27ae60">+10.8%</td><td class="tt-num">4.1%</td></tr>
+<tr><td class="tt-name" title="Financial Services">Financial Services</td><td class="tt-num">$3.0</td><td class="tt-num">$2.7</td><td class="tt-num" style="color:#27ae60">+12.2%</td><td class="tt-num">1.8%</td></tr>
+<tr><td class="tt-name" title="Government services n.i.e">Government services n.i.e</td><td class="tt-num">$2.1</td><td class="tt-num">$2.1</td><td class="tt-num" style="color:#27ae60">+3.3%</td><td class="tt-num">1.3%</td></tr>
+<tr><td class="tt-name" title="Insurance and Pension services">Insurance and Pension services</td><td class="tt-num">$1.3</td><td class="tt-num">$1.3</td><td class="tt-num" style="color:#27ae60">+3.6%</td><td class="tt-num">0.8%</td></tr>
+<tr><td class="tt-name" title="Maintenance and repair n.i.e">Maintenance and repair n.i.e</td><td class="tt-num">$0.9</td><td class="tt-num">$0.8</td><td class="tt-num" style="color:#27ae60">+14.7%</td><td class="tt-num">0.5%</td></tr>
+<tr><td class="tt-name" title="Manufacturing services on physical inputs owned by others">Manufacturing services on physical inputs owned by others</td><td class="tt-num">$0.0</td><td class="tt-num">$0.0</td><td class="tt-num">—</td><td class="tt-num">0.0%</td></tr>
+<tr><td class="tt-name" title="Construction">Construction</td><td class="tt-num">$0.0</td><td class="tt-num">$0.0</td><td class="tt-num">—</td><td class="tt-num">0.0%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS International Trade in Services (TRADE_SERV_CNTRY)</p>
+        </div><div class="trade-table-wrap">
+            <h3>Top Services Export Partners</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2024<br>($bn)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="ASEAN">ASEAN</td><td class="tt-num">$19.1</td><td class="tt-num">$16.9</td><td class="tt-num" style="color:#27ae60">+13.2%</td><td class="tt-num">12.9%</td></tr>
+<tr><td class="tt-name" title="China">China</td><td class="tt-num">$16.8</td><td class="tt-num">$13.9</td><td class="tt-num" style="color:#27ae60">+20.9%</td><td class="tt-num">11.3%</td></tr>
+<tr><td class="tt-name" title="United States">United States</td><td class="tt-num">$15.7</td><td class="tt-num">$15.3</td><td class="tt-num" style="color:#27ae60">+2.7%</td><td class="tt-num">10.6%</td></tr>
+<tr><td class="tt-name" title="Asia, nes">Asia, nes</td><td class="tt-num">$13.9</td><td class="tt-num">$11.6</td><td class="tt-num" style="color:#27ae60">+20.1%</td><td class="tt-num">9.4%</td></tr>
+<tr><td class="tt-name" title="India">India</td><td class="tt-num">$10.5</td><td class="tt-num">$9.6</td><td class="tt-num" style="color:#27ae60">+9.0%</td><td class="tt-num">7.1%</td></tr>
+<tr><td class="tt-name" title="EU">EU</td><td class="tt-num">$8.5</td><td class="tt-num">$7.5</td><td class="tt-num" style="color:#27ae60">+13.6%</td><td class="tt-num">5.8%</td></tr>
+<tr><td class="tt-name" title="United Kingdom, Channel Islands and Isle of Man, nfd">United Kingdom, Channel Islands and Isle of Man, nfd</td><td class="tt-num">$7.6</td><td class="tt-num">$7.8</td><td class="tt-num" style="color:#e74c3c">-2.7%</td><td class="tt-num">5.1%</td></tr>
+<tr><td class="tt-name" title="New Zealand">New Zealand</td><td class="tt-num">$6.7</td><td class="tt-num">$6.6</td><td class="tt-num" style="color:#27ae60">+1.8%</td><td class="tt-num">4.5%</td></tr>
+<tr><td class="tt-name" title="Singapore">Singapore</td><td class="tt-num">$4.9</td><td class="tt-num">$4.8</td><td class="tt-num" style="color:#27ae60">+2.9%</td><td class="tt-num">3.3%</td></tr>
+<tr><td class="tt-name" title="Vietnam">Vietnam</td><td class="tt-num">$3.5</td><td class="tt-num">$2.6</td><td class="tt-num" style="color:#27ae60">+34.3%</td><td class="tt-num">2.4%</td></tr>
+<tr><td class="tt-name" title="Philippines">Philippines</td><td class="tt-num">$3.4</td><td class="tt-num">$2.5</td><td class="tt-num" style="color:#27ae60">+37.2%</td><td class="tt-num">2.3%</td></tr>
+<tr><td class="tt-name" title="Japan">Japan</td><td class="tt-num">$2.9</td><td class="tt-num">$2.6</td><td class="tt-num" style="color:#27ae60">+13.2%</td><td class="tt-num">2.0%</td></tr>
+<tr><td class="tt-name" title="Hong Kong">Hong Kong</td><td class="tt-num">$2.8</td><td class="tt-num">$2.8</td><td class="tt-num" style="color:#27ae60">+2.2%</td><td class="tt-num">1.9%</td></tr>
+<tr><td class="tt-name" title="America, nes">America, nes</td><td class="tt-num">$2.8</td><td class="tt-num">$3.2</td><td class="tt-num" style="color:#e74c3c">-12.1%</td><td class="tt-num">1.9%</td></tr>
+<tr><td class="tt-name" title="Indonesia">Indonesia</td><td class="tt-num">$2.8</td><td class="tt-num">$2.5</td><td class="tt-num" style="color:#27ae60">+9.8%</td><td class="tt-num">1.9%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS International Trade in Services (TRADE_SERV_CNTRY)</p>
+        </div><div class="trade-table-wrap">
+            <h3>Top Services Import Partners</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">2024<br>($bn)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="tt-name" title="United States">United States</td><td class="tt-num">$41.4</td><td class="tt-num">$37.1</td><td class="tt-num" style="color:#27ae60">+11.7%</td><td class="tt-num">19.6%</td></tr>
+<tr><td class="tt-name" title="ASEAN">ASEAN</td><td class="tt-num">$31.5</td><td class="tt-num">$28.4</td><td class="tt-num" style="color:#27ae60">+10.9%</td><td class="tt-num">14.9%</td></tr>
+<tr><td class="tt-name" title="EU">EU</td><td class="tt-num">$19.8</td><td class="tt-num">$19.5</td><td class="tt-num" style="color:#27ae60">+1.6%</td><td class="tt-num">9.4%</td></tr>
+<tr><td class="tt-name" title="United Kingdom, Channel Islands and Isle of Man, nfd">United Kingdom, Channel Islands and Isle of Man, nfd</td><td class="tt-num">$10.9</td><td class="tt-num">$11.2</td><td class="tt-num" style="color:#e74c3c">-2.4%</td><td class="tt-num">5.1%</td></tr>
+<tr><td class="tt-name" title="Indonesia">Indonesia</td><td class="tt-num">$10.8</td><td class="tt-num">$9.1</td><td class="tt-num" style="color:#27ae60">+19.3%</td><td class="tt-num">5.1%</td></tr>
+<tr><td class="tt-name" title="New Zealand">New Zealand</td><td class="tt-num">$10.8</td><td class="tt-num">$10.7</td><td class="tt-num" style="color:#27ae60">+0.5%</td><td class="tt-num">5.1%</td></tr>
+<tr><td class="tt-name" title="Singapore">Singapore</td><td class="tt-num">$9.1</td><td class="tt-num">$8.3</td><td class="tt-num" style="color:#27ae60">+8.7%</td><td class="tt-num">4.3%</td></tr>
+<tr><td class="tt-name" title="Asia, nes">Asia, nes</td><td class="tt-num">$8.4</td><td class="tt-num">$8.2</td><td class="tt-num" style="color:#27ae60">+2.2%</td><td class="tt-num">4.0%</td></tr>
+<tr><td class="tt-name" title="Japan">Japan</td><td class="tt-num">$7.0</td><td class="tt-num">$5.6</td><td class="tt-num" style="color:#27ae60">+26.3%</td><td class="tt-num">3.3%</td></tr>
+<tr><td class="tt-name" title="India">India</td><td class="tt-num">$6.0</td><td class="tt-num">$5.8</td><td class="tt-num" style="color:#27ae60">+4.4%</td><td class="tt-num">2.8%</td></tr>
+<tr><td class="tt-name" title="China">China</td><td class="tt-num">$5.2</td><td class="tt-num">$4.3</td><td class="tt-num" style="color:#27ae60">+20.3%</td><td class="tt-num">2.5%</td></tr>
+<tr><td class="tt-name" title="Germany">Germany</td><td class="tt-num">$5.1</td><td class="tt-num">$5.1</td><td class="tt-num" style="color:#e74c3c">-1.4%</td><td class="tt-num">2.4%</td></tr>
+<tr><td class="tt-name" title="Europe, nes">Europe, nes</td><td class="tt-num">$4.5</td><td class="tt-num">$4.2</td><td class="tt-num" style="color:#27ae60">+7.4%</td><td class="tt-num">2.1%</td></tr>
+<tr><td class="tt-name" title="Thailand">Thailand</td><td class="tt-num">$3.9</td><td class="tt-num">$3.5</td><td class="tt-num" style="color:#27ae60">+10.9%</td><td class="tt-num">1.9%</td></tr>
+<tr><td class="tt-name" title="Hong Kong">Hong Kong</td><td class="tt-num">$3.8</td><td class="tt-num">$3.6</td><td class="tt-num" style="color:#27ae60">+5.8%</td><td class="tt-num">1.8%</td></tr>
+
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS International Trade in Services (TRADE_SERV_CNTRY)</p>
+        </div></div>
+
+            
+            <div class="insights-box">
+                <h3>Service Types</h3>
+<ul>
+<li>Services imports of Charges for the use of intellectual property n.i.e grew strongly year-on-year (+23.2%) to $16.5b in 2024</li>
+<li>Services exports of Charges for the use of intellectual property n.i.e grew notably year-on-year (+19.8%) to $9.5b in 2024</li>
+</ul><h3>Partners</h3>
+<ul>
+<li>Services exports to Vietnam grew strongly year-on-year (+34.3%) to $3.5b in 2024</li>
+<li>Services imports from Japan grew strongly year-on-year (+26.3%) to $7.0b in 2024</li>
+</ul>
+            </div>
+        </div>
+        
+    <script>
+    function switchTab(tabName) {
+        // Hide all tab content
+        document.querySelectorAll('.tab-content').forEach(function(el) {
+            el.classList.remove('active');
+        });
+        // Deactivate all tab buttons
+        document.querySelectorAll('.tab-btn').forEach(function(el) {
+            el.classList.remove('active');
+        });
+        // Show selected tab content
+        document.getElementById('tab-' + tabName).classList.add('active');
+        // Activate selected tab button
+        event.target.classList.add('active');
+        // Dispatch resize so Plotly redraws on hidden->visible
+        window.dispatchEvent(new Event('resize'));
+    }
+    </script>
+    </div>
+</body>
+</html>

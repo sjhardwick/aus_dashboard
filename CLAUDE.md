@@ -4,20 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Australian Macroeconomic Dashboard — a single-file Python application (`gdp_contributions.py`) that fetches live data from ABS (Australian Bureau of Statistics) and RBA APIs, generates interactive Plotly charts with automated narrative insights, and outputs a self-contained HTML dashboard (`dashboard.html`).
+Australian Macroeconomic Dashboard — a single-file Python application (`aus_dashboard.py`) that fetches live data from ABS (Australian Bureau of Statistics) and RBA APIs, generates interactive Plotly charts with automated narrative insights, and outputs a self-contained HTML dashboard (`dashboard.html`).
 
 ## Running the Dashboard
 
 ```bash
 pip install -r requirements.txt
-python gdp_contributions.py
+python aus_dashboard.py
 ```
 
 This fetches live data, generates `dashboard.html`, and opens it in the default browser. Requires internet access for API calls.
 
 ## Architecture
 
-The entire application lives in `gdp_contributions.py` (~1950 lines) with three logical layers:
+The entire application lives in `aus_dashboard.py` (~1950 lines) with three logical layers:
 
 1. **Data fetching** — Functions like `fetch_abs_csv()`, `fetch_abs_codelist()` call the ABS SDMX REST API (`data.api.abs.gov.au`) and RBA Excel endpoints. Each macro domain has its own fetcher: `get_gdp_contributions()`, `get_current_account()`, `get_trade_data()`, `get_inflation_rba()`, `get_labour_force()`, `get_merch_trade_tables()`.
 

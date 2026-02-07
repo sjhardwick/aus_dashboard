@@ -402,6 +402,89 @@ def _process_merch_table(
     return result
 
 
+# Regional aggregates to exclude from services country tables
+_SERVICES_COUNTRY_AGGREGATES = {
+    "TOT", "APEC", "OECD", "ASEA", "EU27", "EURO", "OPEC",
+    "OTHE", "BRIC", "G20", "EASIA", "SASIA", "AMER", "EURP",
+    "AFRI", "OCEA", "MIDE", "REST", "WOTHR",
+}
+
+
+def _process_services_table(
+    df: pd.DataFrame,
+    group_col: str,
+    name_lookup: Dict[str, str],
+    abs_values: bool = True,
+) -> pd.DataFrame:
+    """Process a raw services trade CSV into a summary table.
+
+    Returns a DataFrame with columns:
+        Name, latest_yr, prior_yr, yoy_pct, share_pct, _latest_yr_label
+    sorted by latest_yr descending, top 15 rows.
+    """
+    df = df.copy()
+    df[group_col] = df[group_col].astype(str)
+
+    # Filter out totals and aggregates
+    if group_col == "EBOPS":
+        # Keep only top-level EBOPS codes (1-digit or 2-digit 1-12)
+        def _is_top_level(code):
+            if code in ("TOTAL", "TOT", "_T", "_Z"):
+                return False
+            try:
+                n = int(code)
+                return 1 <= n <= 12
+            except ValueError:
+                return False
+        df = df[df[group_col].apply(_is_top_level)]
+    else:
+        # Country: exclude TOT and regional aggregates
+        df = df[~df[group_col].isin(_SERVICES_COUNTRY_AGGREGATES)]
+
+    # Convert AUD millions → billions
+    df["value_bn"] = df["OBS_VALUE"] / 1000
+    if abs_values:
+        df["value_bn"] = df["value_bn"].abs()
+
+    # Pivot: rows = TIME_PERIOD (year), columns = code
+    piv = df.pivot_table(index="TIME_PERIOD", columns=group_col, values="value_bn", aggfunc="sum")
+    piv = piv.sort_index()
+
+    if len(piv) < 2:
+        return pd.DataFrame()
+
+    latest_yr = piv.index[-1]
+    prior_yr = piv.index[-2]
+    latest_vals = piv.loc[latest_yr]
+    prior_vals = piv.loc[prior_yr]
+
+    yoy_pct = ((latest_vals / prior_vals) - 1) * 100
+
+    total_latest = latest_vals.sum()
+    share_pct = (latest_vals / total_latest) * 100 if total_latest != 0 else latest_vals * 0
+
+    # Determine year label (detect FY vs CY from TIME_PERIOD format)
+    yr_str = str(latest_yr)
+    yr_label = f"FY{yr_str}" if "-" in yr_str else yr_str
+
+    records = []
+    for code in piv.columns:
+        name = name_lookup.get(code, code)
+        name = COUNTRY_NAME_OVERRIDES.get(name, name)
+        records.append({
+            "Name": name,
+            "latest_yr": latest_vals.get(code, np.nan),
+            "prior_yr": prior_vals.get(code, np.nan),
+            "yoy_pct": yoy_pct.get(code, np.nan),
+            "share_pct": share_pct.get(code, np.nan),
+            "_latest_yr_label": yr_label,
+        })
+
+    result = pd.DataFrame(records)
+    result = result.sort_values("latest_yr", ascending=False).head(15).reset_index(drop=True)
+    return result
+
+
 def get_merch_trade_tables(start_period: str = "2023-01") -> Dict[str, pd.DataFrame]:
     """Fetch merchandise trade data and return 4 summary DataFrames.
 
@@ -449,6 +532,66 @@ def get_merch_trade_tables(start_period: str = "2023-01") -> Dict[str, pd.DataFr
     tables["imp_commodity"] = _process_merch_table(imp_comm, "COMMODITY_SITC", sitc_names)
     tables["exp_country"] = _process_merch_table(exp_ctry, "COUNTRY_DEST", country_names)
     tables["imp_country"] = _process_merch_table(imp_ctry, "COUNTRY_ORIGIN", country_names)
+
+    return tables
+
+
+def get_services_trade_tables() -> Dict[str, pd.DataFrame]:
+    """Fetch services trade data and return 4 summary DataFrames.
+
+    Keys: 'svc_exp_type', 'svc_imp_type', 'svc_exp_country', 'svc_imp_country'
+    """
+    import datetime
+
+    print("Fetching services trade codelists...")
+    ebops_names = fetch_abs_codelist("CL_EBOPS_TRADE")
+    country_names = fetch_abs_codelist("CL_SERVICES_COUNTRY")
+
+    # Determine which dataflow (CY or FY) has the most recent data
+    print("Checking services trade data availability...")
+    cy_flow = "ABS,TRADE_SERV_CNTRY_CY"
+    fy_flow = "ABS,TRADE_SERV_CNTRY_FY"
+
+    try:
+        cy_total = fetch_abs_csv(cy_flow, "EXP.TOTAL.TOT.A", "2015")
+        cy_max_yr = cy_total["TIME_PERIOD"].max()
+    except Exception:
+        cy_max_yr = "0"
+
+    try:
+        fy_total = fetch_abs_csv(fy_flow, "EXP.TOTAL.TOT.A", "2015")
+        fy_max_yr = fy_total["TIME_PERIOD"].max()
+    except Exception:
+        fy_max_yr = "0"
+
+    if str(fy_max_yr) > str(cy_max_yr):
+        dataflow = fy_flow
+        print(f"Using FY dataflow (latest: {fy_max_yr})")
+    else:
+        dataflow = cy_flow
+        print(f"Using CY dataflow (latest: {cy_max_yr})")
+
+    # Start period ~5 years back
+    current_year = datetime.date.today().year
+    start_yr = str(current_year - 5)
+
+    print("Fetching services exports by type...")
+    exp_type = fetch_abs_csv(dataflow, "EXP..TOT.A", start_yr)
+
+    print("Fetching services imports by type...")
+    imp_type = fetch_abs_csv(dataflow, "IMP..TOT.A", start_yr)
+
+    print("Fetching services exports by country...")
+    exp_ctry = fetch_abs_csv(dataflow, "EXP.TOTAL..A", start_yr)
+
+    print("Fetching services imports by country...")
+    imp_ctry = fetch_abs_csv(dataflow, "IMP.TOTAL..A", start_yr)
+
+    tables = {}
+    tables["svc_exp_type"] = _process_services_table(exp_type, "EBOPS", ebops_names)
+    tables["svc_imp_type"] = _process_services_table(imp_type, "EBOPS", ebops_names, abs_values=True)
+    tables["svc_exp_country"] = _process_services_table(exp_ctry, "COUNTRY", country_names)
+    tables["svc_imp_country"] = _process_services_table(imp_ctry, "COUNTRY", country_names, abs_values=True)
 
     return tables
 
@@ -1254,6 +1397,86 @@ def generate_trade_insights(
     return result
 
 
+def generate_services_trade_insights(
+    tables: Dict[str, pd.DataFrame],
+) -> Dict[str, List[str]]:
+    """Generate narrative insights from services trade tables.
+
+    Analyzes the 4 services summary tables for YoY outliers using z-scores.
+    Returns a dict keyed by category ("Service Types", "Partners") with
+    lists of insight strings, capped at 10.
+    """
+
+    scored: List[Tuple[float, str, str]] = []
+
+    table_meta = {
+        "svc_exp_type":    ("Services exports of", "Service Types"),
+        "svc_imp_type":    ("Services imports of", "Service Types"),
+        "svc_exp_country": ("Services exports to", "Partners"),
+        "svc_imp_country": ("Services imports from", "Partners"),
+    }
+
+    def _verb(pct: float) -> str:
+        abs_pct = abs(pct)
+        if pct > 0:
+            if abs_pct > 50:
+                return "surged"
+            elif abs_pct > 20:
+                return "grew strongly"
+            else:
+                return "grew notably"
+        else:
+            if abs_pct > 50:
+                return "plunged"
+            elif abs_pct > 20:
+                return "fell sharply"
+            else:
+                return "declined notably"
+
+    for key, (prefix, category) in table_meta.items():
+        df = tables.get(key)
+        if df is None or df.empty:
+            continue
+
+        top = df.nlargest(10, "latest_yr").copy()
+        if len(top) < 3:
+            continue
+
+        yoy = top["yoy_pct"].dropna()
+        if len(yoy) < 3:
+            continue
+        mean_yoy = yoy.mean()
+        std_yoy = yoy.std()
+        if std_yoy <= 0:
+            continue
+
+        yr_label = top["_latest_yr_label"].iloc[0] if "_latest_yr_label" in top.columns else "latest year"
+
+        for _, row in top.iterrows():
+            if pd.isna(row["yoy_pct"]):
+                continue
+            z = (row["yoy_pct"] - mean_yoy) / std_yoy
+            if abs(z) > 1.5 and abs(row["yoy_pct"]) > 15:
+                verb = _verb(row["yoy_pct"])
+                insight = (
+                    f"{prefix} {row['Name']} {verb} year-on-year "
+                    f"({row['yoy_pct']:+.1f}%) to ${row['latest_yr']:.1f}b "
+                    f"in {yr_label}"
+                )
+                scored.append((abs(z), category, insight))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    scored = scored[:10]
+
+    category_order = ["Service Types", "Partners"]
+    result: Dict[str, List[str]] = {}
+    for cat in category_order:
+        items = [text for _, c, text in scored if c == cat]
+        if items:
+            result[cat] = items
+    return result
+
+
 def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
     """Build HTML for the 4 merchandise trade tables in a 2x2 grid."""
 
@@ -1322,6 +1545,75 @@ def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
     html += _build_table("imp_commodity")
     html += _build_table("exp_country")
     html += _build_table("imp_country")
+    html += "</div>\n"
+    return html
+
+
+def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
+    """Build HTML for the 4 services trade tables in a 2x2 grid."""
+
+    titles = {
+        "svc_exp_type": "Top Services Exports by Type",
+        "svc_imp_type": "Top Services Imports by Type",
+        "svc_exp_country": "Top Services Export Partners",
+        "svc_imp_country": "Top Services Import Partners",
+    }
+
+    def _fmt_val(v, fmt="bn"):
+        if pd.isna(v):
+            return '<td class="tt-num">—</td>'
+        if fmt == "bn":
+            return f'<td class="tt-num">${v:,.1f}</td>'
+        elif fmt == "pct":
+            color = "#27ae60" if v >= 0 else "#e74c3c"
+            return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
+        elif fmt == "share":
+            return f'<td class="tt-num">{v:.1f}%</td>'
+        return f'<td class="tt-num">{v}</td>'
+
+    def _build_table(key):
+        df = tables.get(key)
+        if df is None or df.empty:
+            return f'<div class="trade-table-wrap"><h3>{titles[key]}</h3><p>Data unavailable</p></div>'
+
+        yr_label = df["_latest_yr_label"].iloc[0] if "_latest_yr_label" in df.columns else "Latest"
+
+        rows_html = ""
+        for _, row in df.iterrows():
+            rows_html += "<tr>"
+            rows_html += f'<td class="tt-name" title="{row["Name"]}">{row["Name"]}</td>'
+            rows_html += _fmt_val(row["latest_yr"], "bn")
+            rows_html += _fmt_val(row["prior_yr"], "bn")
+            rows_html += _fmt_val(row["yoy_pct"], "pct")
+            rows_html += _fmt_val(row["share_pct"], "share")
+            rows_html += "</tr>\n"
+
+        return f"""<div class="trade-table-wrap">
+            <h3>{titles[key]}</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Name</th>
+                            <th class="tt-num-hdr">{yr_label}<br>($bn)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html}
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS International Trade in Services (TRADE_SERV_CNTRY)</p>
+        </div>"""
+
+    html = '<div class="trade-tables-grid">\n'
+    html += _build_table("svc_exp_type")
+    html += _build_table("svc_imp_type")
+    html += _build_table("svc_exp_country")
+    html += _build_table("svc_imp_country")
     html += "</div>\n"
     return html
 
@@ -1563,8 +1855,9 @@ def create_trade_chart(
         showlegend=False,
         template="plotly_white",
         hovermode="x unified",
-        height=600,
-        margin=dict(l=60, r=40, t=100, b=80),
+        height=450,
+        width=1000,
+        margin=dict(l=60, r=40, t=100, b=110),
     )
 
     fig.add_annotation(
@@ -1572,7 +1865,7 @@ def create_trade_chart(
         xref="paper",
         yref="paper",
         x=0,
-        y=-0.15,
+        y=-0.28,
         showarrow=False,
         font=dict(size=10, color="gray"),
     )
@@ -1788,6 +2081,8 @@ def create_html_with_insights(
     trade_fig: go.Figure = None,
     trade_tables_html: str = "",
     trade_insights: Dict[str, List[str]] = None,
+    services_tables_html: str = "",
+    services_trade_insights: Dict[str, List[str]] = None,
 ):
     """Create HTML file with dashboard and insights summary box.
 
@@ -1925,6 +2220,12 @@ def create_html_with_insights(
             margin: 8px 0 0 0;
             font-size: 0.78em;
             color: #999;
+        }
+        .trade-section-heading {
+            margin: 32px 0 4px 0;
+            color: #2c3e50;
+            font-size: 1.3em;
+            font-weight: 600;
         }"""
 
         tab_js = """
@@ -1947,21 +2248,38 @@ def create_html_with_insights(
     }
     </script>"""
 
-        # Build trade insights HTML (grouped by category sub-headings)
-        if trade_insights:
-            trade_sections = []
-            for cat, items in trade_insights.items():
+        # Build 3 separate trade insight boxes
+        def _build_insight_box(insight_dict):
+            if not insight_dict:
+                return ""
+            sections = []
+            for cat, items in insight_dict.items():
                 if items:
                     bullets = "\n".join(f"<li>{item}</li>" for item in items)
-                    trade_sections.append(f"<h3>{cat}</h3>\n<ul>\n{bullets}\n</ul>")
-            trade_bullets_html = "\n".join(trade_sections) if trade_sections else ""
-            trade_insights_html = f"""
+                    sections.append(f"<h3>{cat}</h3>\n<ul>\n{bullets}\n</ul>")
+            if not sections:
+                return ""
+            return f"""
             <div class="insights-box">
-                <h2>Trade Insights</h2>
-                {trade_bullets_html}
-            </div>""" if trade_bullets_html else ""
-        else:
-            trade_insights_html = ""
+                {"".join(sections)}
+            </div>"""
+
+        # 1) Chart insights: only "Trade Balance" from trade_insights
+        chart_insight_dict = {}
+        if trade_insights and "Trade Balance" in trade_insights:
+            chart_insight_dict["Trade Balance"] = trade_insights["Trade Balance"]
+        chart_insights_html = _build_insight_box(chart_insight_dict)
+
+        # 2) Goods table insights: "Commodities" + "Partners" from trade_insights
+        goods_insight_dict = {}
+        if trade_insights:
+            for cat in ["Commodities", "Partners"]:
+                if cat in trade_insights:
+                    goods_insight_dict[cat] = trade_insights[cat]
+        goods_insights_html = _build_insight_box(goods_insight_dict)
+
+        # 3) Services insights
+        services_insights_html = _build_insight_box(services_trade_insights)
 
         body_content = f"""
         {tab_bar_html}
@@ -1970,16 +2288,22 @@ def create_html_with_insights(
                 {chart_html}
             </div>
             <div class="insights-box">
-                <h2>Insights</h2>
                 {bullets_html}
             </div>
         </div>
         <div id="tab-trade" class="tab-content">
-            <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
-                {trade_chart_html}
+            <div class="trade-chart-wrap" style="max-width: 1000px; margin: 0 auto; padding: 20px 0;">
+                <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
+                    {trade_chart_html}
+                </div>
             </div>
-            {trade_insights_html}
+            {chart_insights_html}
+            <h2 class="trade-section-heading">Goods Trade</h2>
             {trade_tables_html}
+            {goods_insights_html}
+            <h2 class="trade-section-heading">Services Trade</h2>
+            {services_tables_html}
+            {services_insights_html}
         </div>
         {tab_js}"""
     else:
@@ -1989,7 +2313,6 @@ def create_html_with_insights(
             {chart_html}
         </div>
         <div class="insights-box">
-            <h2>Insights</h2>
             {bullets_html}
         </div>"""
 
@@ -2101,6 +2424,10 @@ def main():
     trade_tables_data = get_merch_trade_tables("2023-01")
     trade_tables_html = generate_trade_tables_html(trade_tables_data)
 
+    # Fetch services trade tables
+    services_tables_data = get_services_trade_tables()
+    services_tables_html = generate_services_tables_html(services_tables_data)
+
     # Generate trade insights
     print("Generating trade insights...")
     trade_insights = generate_trade_insights(trade_tables_data, data["trade"])
@@ -2112,17 +2439,32 @@ def main():
             for insight in items:
                 print(f"    • {insight}")
 
+    # Generate services trade insights
+    print("Generating services trade insights...")
+    services_trade_insights = generate_services_trade_insights(services_tables_data)
+
+    if services_trade_insights:
+        print("\nServices Trade Insights:")
+        for category, items in services_trade_insights.items():
+            print(f"\n  {category}:")
+            for insight in items:
+                print(f"    • {insight}")
+
     # Save HTML with insights
     create_html_with_insights(
         dashboard, insights, "dashboard.html",
         trade_fig=trade_chart, trade_tables_html=trade_tables_html,
         trade_insights=trade_insights,
+        services_tables_html=services_tables_html,
+        services_trade_insights=services_trade_insights,
     )
     print("\nSaved: dashboard.html")
 
-    # Open dashboard in browser
-    import webbrowser
-    webbrowser.open("dashboard.html")
+    # Open dashboard in browser (skip in CI)
+    import os
+    if not os.environ.get("CI"):
+        import webbrowser
+        webbrowser.open("dashboard.html")
 
 
 if __name__ == "__main__":
