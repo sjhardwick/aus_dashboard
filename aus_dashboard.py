@@ -1856,7 +1856,6 @@ def create_trade_chart(
         template="plotly_white",
         hovermode="x unified",
         height=450,
-        width=1000,
         margin=dict(l=60, r=40, t=100, b=110),
     )
 
@@ -2034,7 +2033,6 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[go.Figure, Dict[str
         template="plotly_white",
         hovermode="x unified",
         height=950,
-        width=1400,
         margin=dict(l=70, r=50, t=90, b=100),
         showlegend=False,
     )
@@ -2092,7 +2090,7 @@ def create_html_with_insights(
     """
 
     # Generate the plotly HTML (div only, not full page)
-    chart_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+    chart_html = fig.to_html(full_html=False, include_plotlyjs='cdn', config={'responsive': True})
 
     # Create grouped bullet points HTML with category subheadings
     if insights:
@@ -2107,7 +2105,7 @@ def create_html_with_insights(
 
     # Build tab bar and trade content if trade_fig is provided
     if trade_fig is not None:
-        trade_chart_html = trade_fig.to_html(full_html=False, include_plotlyjs=False)
+        trade_chart_html = trade_fig.to_html(full_html=False, include_plotlyjs=False, config={'responsive': True})
 
         tab_bar_html = """
         <div class="tab-bar">
@@ -2292,7 +2290,7 @@ def create_html_with_insights(
             </div>
         </div>
         <div id="tab-trade" class="tab-content">
-            <div class="trade-chart-wrap" style="max-width: 1000px; margin: 0 auto; padding: 20px 0;">
+            <div class="trade-chart-wrap">
                 <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
                     {trade_chart_html}
                 </div>
@@ -2321,6 +2319,7 @@ def create_html_with_insights(
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Australian Macroeconomic Dashboard</title>
     <style>
         body {{
@@ -2374,8 +2373,79 @@ def create_html_with_insights(
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             padding: 10px;
+            width: 100%;
+            overflow-x: auto;
+            box-sizing: border-box;
+        }}
+        .trade-chart-wrap {{
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px 0;
         }}
         {tab_css}
+        @media (max-width: 768px) {{
+            .container {{
+                max-width: 100%;
+                padding: 10px;
+            }}
+            body {{
+                padding: 10px;
+            }}
+            .trade-tables-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .trade-chart-wrap {{
+                max-width: 100%;
+            }}
+            .insights-box {{
+                padding: 15px 18px;
+                margin-top: 20px;
+            }}
+            .tab-btn {{
+                padding: 10px 20px;
+                font-size: 0.92em;
+            }}
+            .trade-table {{
+                font-size: 0.82em;
+            }}
+            .tt-name {{
+                max-width: 130px;
+            }}
+        }}
+        @media (max-width: 480px) {{
+            body {{
+                padding: 5px;
+            }}
+            .container {{
+                padding: 5px;
+            }}
+            .chart-container {{
+                padding: 5px;
+            }}
+            .insights-box {{
+                padding: 12px 14px;
+                margin-top: 15px;
+            }}
+            .tab-btn {{
+                padding: 8px 14px;
+                font-size: 0.85em;
+            }}
+            .trade-table {{
+                font-size: 0.78em;
+            }}
+            .tt-name {{
+                max-width: 100px;
+            }}
+            .trade-table th {{
+                padding: 6px 6px;
+            }}
+            .trade-table td {{
+                padding: 4px 6px;
+            }}
+            .trade-section-heading {{
+                font-size: 1.1em;
+            }}
+        }}
     </style>
 </head>
 <body>
