@@ -1782,94 +1782,74 @@ def create_current_account_chart(
 
 def create_trade_chart(
     trade_data: pd.DataFrame,
-) -> go.Figure:
-    """Create side-by-side charts for Goods (left) and Services (right) trade flows.
+) -> List[go.Figure]:
+    """Create individual charts for Goods and Services trade flows.
 
-    Each panel shows credit/debit lines and a balance bar.
+    Each chart shows credit/debit lines and a balance bar.
+    Returns a list of two figures: [goods_fig, services_fig].
     """
 
     df = trade_data.copy()
-
-    fig = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=("Goods", "Services"),
-        horizontal_spacing=0.08,
+    _common = dict(
+        barmode="relative", showlegend=False, template="plotly_white",
+        hovermode="x unified", height=420, margin=dict(l=60, r=30, t=50, b=80),
     )
 
-    # --- Goods panel (col 1) ---
+    # --- Goods chart ---
+    goods_fig = go.Figure()
     if "Goods Balance" in df.columns:
-        fig.add_trace(go.Bar(
+        goods_fig.add_trace(go.Bar(
             name="Goods Balance",
             x=df["TIME_PERIOD"],
             y=df["Goods Balance"],
             marker_color=TRADE_COLORS["Goods Balance"],
             marker_opacity=0.45,
             hovertemplate="Goods Balance: $%{y:.1f}bn<extra></extra>",
-        ), row=1, col=1)
+        ))
 
     for comp in ["Goods Credits", "Goods Debits"]:
         if comp in df.columns:
-            fig.add_trace(go.Scatter(
+            goods_fig.add_trace(go.Scatter(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
                 mode="lines",
                 line=dict(color=TRADE_COLORS[comp], width=2),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
-            ), row=1, col=1)
+            ))
 
-    # --- Services panel (col 2) ---
+    goods_fig.update_layout(**_common, title="Goods")
+    goods_fig.update_xaxes(tickangle=-45, dtick=4)
+    goods_fig.update_yaxes(title_text="A$ Billion", zeroline=True, zerolinewidth=1, zerolinecolor="gray")
+
+    # --- Services chart ---
+    services_fig = go.Figure()
     if "Services Balance" in df.columns:
-        fig.add_trace(go.Bar(
+        services_fig.add_trace(go.Bar(
             name="Services Balance",
             x=df["TIME_PERIOD"],
             y=df["Services Balance"],
             marker_color=TRADE_COLORS["Services Balance"],
             marker_opacity=0.45,
             hovertemplate="Services Balance: $%{y:.1f}bn<extra></extra>",
-        ), row=1, col=2)
+        ))
 
     for comp in ["Services Credits", "Services Debits"]:
         if comp in df.columns:
-            fig.add_trace(go.Scatter(
+            services_fig.add_trace(go.Scatter(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
                 mode="lines",
                 line=dict(color=TRADE_COLORS[comp], width=2),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
-            ), row=1, col=2)
+            ))
 
-    # Shared axis styling
-    for axis_suffix in ["", "2"]:
-        fig.update_layout(**{
-            f"xaxis{axis_suffix}": dict(tickangle=-45, dtick=4),
-            f"yaxis{axis_suffix}": dict(
-                title="A$ Billion" if axis_suffix == "" else None,
-                zeroline=True, zerolinewidth=1, zerolinecolor="gray",
-            ),
-        })
+    services_fig.update_layout(**_common, title="Services")
+    services_fig.update_xaxes(tickangle=-45, dtick=4)
+    services_fig.update_yaxes(title_text="A$ Billion", zeroline=True, zerolinewidth=1, zerolinecolor="gray")
 
-    fig.update_layout(
-        barmode="relative",
-        showlegend=False,
-        template="plotly_white",
-        hovermode="x unified",
-        height=450,
-        margin=dict(l=60, r=40, t=100, b=110),
-    )
-
-    fig.add_annotation(
-        text="Source: ABS Balance of Payments (Cat. 5302.0)",
-        xref="paper",
-        yref="paper",
-        x=0,
-        y=-0.28,
-        showarrow=False,
-        font=dict(size=10, color="gray"),
-    )
-
-    return fig
+    return [goods_fig, services_fig]
 
 
 def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Dict[str, pd.DataFrame]]:
@@ -2066,7 +2046,7 @@ def create_html_with_insights(
     charts: List[go.Figure],
     insights: dict,
     output_path: str = "dashboard.html",
-    trade_fig: go.Figure = None,
+    trade_figs: List[go.Figure] = None,
     trade_tables_html: str = "",
     trade_insights: Dict[str, List[str]] = None,
     services_tables_html: str = "",
@@ -2076,7 +2056,7 @@ def create_html_with_insights(
 
     charts is a list of individual Plotly figures for the Big Picture tab,
     rendered in a responsive CSS grid (2-col desktop, 1-col mobile).
-    When trade_fig is provided, renders a tab bar (Big Picture / Trade) with
+    When trade_figs is provided, renders a tab bar (Big Picture / Trade) with
     pure CSS/JS toggle.
     """
 
@@ -2118,9 +2098,21 @@ def create_html_with_insights(
     else:
         bullets_html = "<p>No unusual developments detected in the recent data.</p>"
 
-    # Build tab bar and trade content if trade_fig is provided
-    if trade_fig is not None:
-        trade_chart_html = trade_fig.to_html(full_html=False, include_plotlyjs=False, config={'responsive': True})
+    # Build tab bar and trade content if trade_figs is provided
+    if trade_figs is not None:
+        trade_panel_htmls = []
+        for tfig in trade_figs:
+            trade_panel_htmls.append(
+                tfig.to_html(full_html=False, include_plotlyjs=False, config={'responsive': True})
+            )
+        trade_grid_panels = "\n".join(
+            f'<div class="chart-panel"><div class="chart-container">{h}</div></div>'
+            for h in trade_panel_htmls
+        )
+        trade_chart_grid = f"""
+        <div class="charts-row charts-row-2">{trade_grid_panels}</div>
+        <p class="source-note">Source: ABS Balance of Payments (Cat. 5302.0)</p>
+        """
 
         tab_bar_html = """
         <div class="tab-bar">
@@ -2303,11 +2295,7 @@ def create_html_with_insights(
             </div>
         </div>
         <div id="tab-trade" class="tab-content">
-            <div class="trade-chart-wrap">
-                <div class="chart-container" style="border-radius: 0 8px 8px 8px;">
-                    {trade_chart_html}
-                </div>
-            </div>
+            {trade_chart_grid}
             {chart_insights_html}
             <h2 class="trade-section-heading">Goods Trade</h2>
             {trade_tables_html}
@@ -2522,8 +2510,8 @@ def main():
     else:
         print("\nNo unusual developments detected.")
 
-    # Create trade chart
-    trade_chart = create_trade_chart(data["trade"])
+    # Create trade charts
+    trade_charts = create_trade_chart(data["trade"])
 
     # Fetch merchandise trade tables
     trade_tables_data = get_merch_trade_tables("2023-01")
@@ -2558,7 +2546,7 @@ def main():
     # Save HTML with insights
     create_html_with_insights(
         charts, insights, "dashboard.html",
-        trade_fig=trade_chart, trade_tables_html=trade_tables_html,
+        trade_figs=trade_charts, trade_tables_html=trade_tables_html,
         trade_insights=trade_insights,
         services_tables_html=services_tables_html,
         services_trade_insights=services_trade_insights,
