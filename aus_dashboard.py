@@ -289,6 +289,154 @@ def get_financial_account(start_period: str = "2015-Q1") -> pd.DataFrame:
     return pivot
 
 
+def get_iip_by_country() -> Dict[str, pd.DataFrame]:
+    """Fetch International Investment Position by country from ABS Excel files.
+
+    Downloads Tables 2 (inward) and 5 (outward) from ABS Cat. 5352.0 and
+    returns top-15 source/destination countries with latest year value,
+    prior year value, YoY%, and share%.
+    """
+    from io import BytesIO
+
+    BASE_URL = (
+        "https://www.abs.gov.au/statistics/economy/international-trade/"
+        "international-investment-position-australia-supplementary-statistics/"
+        "latest-release"
+    )
+
+    TABLES = {
+        "inward": {
+            "file": "5352002_2024.xlsx",
+            "sheet": "Table2",
+            "total_label": "Foreign investment in Australia",
+        },
+        "outward": {
+            "file": "5352005_2024.xlsx",
+            "sheet": "Table5",
+            "total_label": "Australian investment abroad",
+        },
+    }
+
+    EXCLUDE_NAMES = {
+        "Total all countries",
+        "APEC",
+        "ASEAN",
+        "OECD",
+        "Total Unspecified",
+    }
+
+    result = {}
+
+    for direction, meta in TABLES.items():
+        url = f"{BASE_URL}/{meta['file']}"
+        try:
+            resp = requests.get(url)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            print(f"  Warning: could not download IIP {direction} data: {e}")
+            result[direction] = pd.DataFrame()
+            continue
+
+        df = pd.read_excel(BytesIO(resp.content), sheet_name=meta["sheet"], header=None)
+
+        # Header row (index 6) contains year columns starting at col 2
+        header_row = df.iloc[6]
+        year_cols = {}  # {col_index: year_int}
+        for col_idx in range(2, len(header_row)):
+            val = header_row.iloc[col_idx]
+            try:
+                yr = int(float(val))
+                if 1990 <= yr <= 2100:
+                    year_cols[col_idx] = yr
+            except (ValueError, TypeError):
+                continue
+
+        if not year_cols:
+            print(f"  Warning: no year columns found in IIP {direction} sheet")
+            result[direction] = pd.DataFrame()
+            continue
+
+        sorted_years = sorted(year_cols.items(), key=lambda x: x[1])
+        latest_col, latest_yr = sorted_years[-1]
+        prior_col, prior_yr = sorted_years[-2] if len(sorted_years) >= 2 else (None, None)
+        hist_col, hist_yr = sorted_years[-4] if len(sorted_years) >= 4 else (None, None)
+
+        # Parse country rows starting at row 7
+        records = []
+        total_value = None
+        current_country = None
+
+        for row_idx in range(7, len(df)):
+            col0 = df.iloc[row_idx, 0]
+            col1 = df.iloc[row_idx, 1] if len(df.columns) > 1 else None
+
+            # Update current country when col 0 is populated
+            if pd.notna(col0) and str(col0).strip():
+                current_country = str(col0).strip()
+
+            if current_country is None or pd.isna(col1):
+                continue
+
+            cat_label = str(col1).strip()
+            if cat_label != meta["total_label"]:
+                continue
+
+            # Extract values
+            latest_val = pd.to_numeric(df.iloc[row_idx, latest_col], errors="coerce")
+            prior_val = pd.to_numeric(
+                df.iloc[row_idx, prior_col], errors="coerce"
+            ) if prior_col is not None else np.nan
+
+            if pd.isna(latest_val):
+                continue
+
+            # Convert millions → billions, use abs() for outward (negative) values
+            latest_bn = abs(latest_val) / 1000
+            prior_bn = abs(prior_val) / 1000 if pd.notna(prior_val) else np.nan
+
+            country = COUNTRY_NAME_OVERRIDES.get(current_country, current_country)
+
+            # Track total for share calculation
+            if current_country == "Total all countries":
+                total_value = latest_bn
+                continue
+
+            # Skip aggregates
+            if country in EXCLUDE_NAMES or country.startswith("EU "):
+                continue
+
+            # YoY %
+            yoy = ((latest_bn / prior_bn) - 1) * 100 if pd.notna(prior_bn) and prior_bn != 0 else np.nan
+
+            # 3-year % change
+            hist_val = pd.to_numeric(df.iloc[row_idx, hist_col], errors="coerce") if hist_col is not None else np.nan
+            hist_bn = abs(hist_val) / 1000 if pd.notna(hist_val) else np.nan
+            three_yr_pct = ((latest_bn / hist_bn) - 1) * 100 if pd.notna(hist_bn) and hist_bn != 0 else np.nan
+
+            records.append({
+                "Name": country,
+                "latest_yr": latest_bn,
+                "prior_yr": prior_bn,
+                "yoy_pct": yoy,
+                "3yr_pct": three_yr_pct,
+                "_latest_yr_label": str(latest_yr),
+                "_hist_yr_label": str(hist_yr) if hist_yr else None,
+            })
+
+        out_df = pd.DataFrame(records)
+        if not out_df.empty:
+            # Compute share %
+            if total_value and total_value > 0:
+                out_df["share_pct"] = (out_df["latest_yr"] / total_value) * 100
+            else:
+                out_df["share_pct"] = np.nan
+            out_df = out_df.sort_values("latest_yr", ascending=False).head(15).reset_index(drop=True)
+
+        result[direction] = out_df
+
+    return result
+
+
 def get_inflation_rba(start_year: int = 2015) -> pd.DataFrame:
     """Fetch inflation data from RBA G1 table (includes trimmed mean)."""
     from io import BytesIO
@@ -413,6 +561,13 @@ def _process_merch_table(
     else:
         yoy_pct = pd.Series(np.nan, index=piv.columns)
 
+    # 3-year % change (trailing 4Q vs trailing 4Q from 12 quarters ago)
+    if len(piv) >= n_trail + 12:
+        hist_4q = piv.iloc[-(n_trail + 12):-(12)].sum()
+        three_yr_pct = ((trailing_4q / hist_4q) - 1) * 100
+    else:
+        three_yr_pct = pd.Series(np.nan, index=piv.columns)
+
     # Share %
     total_trailing = trailing_4q.sum()
     share_pct = (trailing_4q / total_trailing) * 100 if total_trailing != 0 else trailing_4q * 0
@@ -444,6 +599,7 @@ def _process_merch_table(
             "trailing_4q": trailing_4q.get(code, np.nan),
             "qoq_pct": qoq_pct.get(code, np.nan),
             "yoy_pct": yoy_pct.get(code, np.nan),
+            "3yr_pct": three_yr_pct.get(code, np.nan),
             "share_pct": share_pct.get(code, np.nan),
             "_latest_q_label": str(latest_q),
         })
@@ -511,6 +667,14 @@ def _process_services_table(
 
     yoy_pct = ((latest_vals / prior_vals) - 1) * 100
 
+    # 3-year % change
+    if len(piv) >= 4:  # need at least 4 years (latest, -1, -2, -3)
+        hist_yr = piv.index[-4]  # 3 years before latest
+        hist_vals = piv.loc[hist_yr]
+        three_yr_pct = ((latest_vals / hist_vals) - 1) * 100
+    else:
+        three_yr_pct = pd.Series(np.nan, index=piv.columns)
+
     total_latest = latest_vals.sum()
     share_pct = (latest_vals / total_latest) * 100 if total_latest != 0 else latest_vals * 0
 
@@ -527,6 +691,7 @@ def _process_services_table(
             "latest_yr": latest_vals.get(code, np.nan),
             "prior_yr": prior_vals.get(code, np.nan),
             "yoy_pct": yoy_pct.get(code, np.nan),
+            "3yr_pct": three_yr_pct.get(code, np.nan),
             "share_pct": share_pct.get(code, np.nan),
             "_latest_yr_label": yr_label,
         })
@@ -1034,6 +1199,18 @@ def generate_insights(
                 insights["GDP"].append(f"GDP growth has {direction} over the {period_desc} (cumulative change: {cum_change:+.1f} ppts)")
                 break  # Only report one
 
+        # Long-horizon cumulative trend (3yr / 5yr)
+        for window, period_desc in [(20, "past 5 years"), (12, "past 3 years")]:
+            diffs = gdp_series.diff(window).dropna()
+            if len(diffs) < 3:
+                continue
+            min_change = diffs.abs().median()
+            is_cum_trend, z, cum_change = detect_cumulative_trend(gdp_series, window=window, threshold=1.5)
+            if is_cum_trend and abs(cum_change) > min_change:
+                direction = "higher" if cum_change > 0 else "lower"
+                insights["GDP"].append(f"GDP growth is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                break
+
     # Check GDP components for large swings
     for comp in ["Consumption", "GFCF", "Inventories", "Exports", "Imports"]:
         if comp in gdp_df.columns:
@@ -1068,6 +1245,18 @@ def generate_insights(
                 insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}")
                 break
 
+        # Long-horizon cumulative trend (3yr / 5yr)
+        for window, period_desc in [(20, "past 5 years"), (12, "past 3 years")]:
+            diffs = ca_series.diff(window).dropna()
+            if len(diffs) < 3:
+                continue
+            min_change = diffs.abs().median()
+            is_cum_trend, z, cum_change = detect_cumulative_trend(ca_series, window=window, threshold=1.5)
+            if is_cum_trend and abs(cum_change) > min_change:
+                direction = "improved" if cum_change > 0 else "deteriorated"
+                insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}")
+                break
+
     # Check CA components
     for comp in ["Goods", "Services", "Primary Income"]:
         if comp in ca_data.columns:
@@ -1076,6 +1265,15 @@ def generate_insights(
             if is_cum_trend and abs(cum_change) > 1.5:
                 direction = "improved" if cum_change > 0 else "worsened"
                 insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_change):.1f}bn over the past year")
+
+            # Long-horizon (3yr)
+            diffs = series.diff(12).dropna()
+            if len(diffs) >= 3:
+                min_change = diffs.abs().median()
+                is_cum, z_lh, cum_lh = detect_cumulative_trend(series, window=12, threshold=1.5)
+                if is_cum and abs(cum_lh) > min_change:
+                    direction = "improved" if cum_lh > 0 else "worsened"
+                    insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_lh):.1f}bn over the past 3 years")
 
     # ----- Inflation Analysis -----
     if "Trimmed Mean" in inflation_data.columns:
@@ -1103,6 +1301,18 @@ def generate_insights(
                 insights["Inflation"].append(f"Trimmed mean inflation has {direction} by {abs(cum_change):.1f} ppts over the {period_desc}")
                 break
 
+        # Long-horizon cumulative trend (3yr / 5yr)
+        for window, period_desc in [(20, "past 5 years"), (12, "past 3 years")]:
+            diffs = infl_series.diff(window).dropna()
+            if len(diffs) < 3:
+                continue
+            min_change = diffs.abs().median()
+            is_cum_trend, z, cum_change = detect_cumulative_trend(infl_series, window=window, threshold=1.5)
+            if is_cum_trend and abs(cum_change) > min_change:
+                direction = "higher" if cum_change > 0 else "lower"
+                insights["Inflation"].append(f"Trimmed mean inflation is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                break
+
     # ----- Labour Market Analysis -----
     # Need to handle monthly data - use 12 months as "year"
     if "Unemployment Rate" in lf_data.columns:
@@ -1122,6 +1332,18 @@ def generate_insights(
                 insights["Labour Market"].append(f"Unemployment rate has {direction} by {abs(cum_change):.1f} ppts over the {period_desc}")
                 break
 
+        # Long-horizon cumulative trend (3yr / 5yr)
+        for window, period_desc in [(60, "past 5 years"), (36, "past 3 years")]:
+            diffs = unemp_series.diff(window).dropna()
+            if len(diffs) < 3:
+                continue
+            min_change = diffs.abs().median()
+            is_cum_trend, z, cum_change = detect_cumulative_trend(unemp_series, window=window, threshold=1.5)
+            if is_cum_trend and abs(cum_change) > min_change:
+                direction = "higher" if cum_change > 0 else "lower"
+                insights["Labour Market"].append(f"Unemployment rate is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                break
+
     if "Participation Rate" in lf_data.columns:
         part_series = lf_data["Participation Rate"].dropna()
 
@@ -1137,6 +1359,18 @@ def generate_insights(
             if is_cum_trend and abs(cum_change) > 0.2:
                 direction = "risen" if cum_change > 0 else "fallen"
                 insights["Labour Market"].append(f"Participation rate has {direction} by {abs(cum_change):.1f} ppts over the {period_desc}")
+                break
+
+        # Long-horizon cumulative trend (3yr / 5yr)
+        for window, period_desc in [(60, "past 5 years"), (36, "past 3 years")]:
+            diffs = part_series.diff(window).dropna()
+            if len(diffs) < 3:
+                continue
+            min_change = diffs.abs().median()
+            is_cum_trend, z, cum_change = detect_cumulative_trend(part_series, window=window, threshold=1.5)
+            if is_cum_trend and abs(cum_change) > min_change:
+                direction = "higher" if cum_change > 0 else "lower"
+                insights["Labour Market"].append(f"Participation rate is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
                 break
 
     # ----- Narrative Detection Tests -----
@@ -1393,6 +1627,29 @@ def generate_trade_insights(
                         if existing is None or abs(z) > existing[0]:
                             flagged[row["Name"]] = (abs(z), category, insight)
 
+        # 3-year % change outliers
+        if "3yr_pct" in top.columns:
+            three_yr = top["3yr_pct"].dropna()
+            if len(three_yr) >= 3:
+                min_pct = three_yr.abs().quantile(0.75)
+                mean_3yr = three_yr.mean()
+                std_3yr = three_yr.std()
+                if std_3yr > 0:
+                    for _, row in top.iterrows():
+                        if pd.isna(row.get("3yr_pct")):
+                            continue
+                        z = (row["3yr_pct"] - mean_3yr) / std_3yr
+                        if abs(z) > 1.5 and abs(row["3yr_pct"]) > min_pct:
+                            verb = _verb(row["3yr_pct"])
+                            insight = (
+                                f"{prefix} {row['Name']} {verb} vs. 3 years ago "
+                                f"({row['3yr_pct']:+.1f}%) to ${row['trailing_4q']:.1f}b"
+                            )
+                            # Dedup: keep highest z across YoY/QoQ/3yr
+                            existing = flagged.get(row["Name"])
+                            if existing is None or abs(z) > existing[0]:
+                                flagged[row["Name"]] = (abs(z), category, insight)
+
         scored.extend(flagged.values())
 
     # --- Trade flow time series analysis (Goods Balance, Services Balance) ---
@@ -1434,6 +1691,19 @@ def generate_trade_insights(
                 f"in {latest_q}"
             )
             scored.append((abs(z), "Trade Balance", insight))
+
+        # Long-horizon cumulative trend (3yr / 5yr)
+        for window, period_desc in [(20, "past 5 years"), (12, "past 3 years")]:
+            diffs = series.diff(window).dropna()
+            if len(diffs) < 3:
+                continue
+            min_change = diffs.abs().median()
+            is_cum, z_lh, cum_change = detect_cumulative_trend(series, window=window, threshold=1.5)
+            if is_cum and abs(cum_change) > min_change:
+                direction = "expanded" if cum_change > 0 else "contracted"
+                insight = f"{col_name} has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}"
+                scored.append((abs(z_lh), "Trade Balance", insight))
+                break
 
     # Sort by |z-score| descending, cap at 20, group by category
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -1493,33 +1763,339 @@ def generate_services_trade_insights(
         if len(top) < 3:
             continue
 
+        # Track which items have been flagged (for dedup between YoY and 3yr)
+        flagged: Dict[str, Tuple[float, str, str]] = {}  # name -> (abs_z, category, insight)
+
         yoy = top["yoy_pct"].dropna()
-        if len(yoy) < 3:
-            continue
-        mean_yoy = yoy.mean()
-        std_yoy = yoy.std()
-        if std_yoy <= 0:
-            continue
+        if len(yoy) >= 3:
+            mean_yoy = yoy.mean()
+            std_yoy = yoy.std()
+            if std_yoy > 0:
+                yr_label = top["_latest_yr_label"].iloc[0] if "_latest_yr_label" in top.columns else "latest year"
 
-        yr_label = top["_latest_yr_label"].iloc[0] if "_latest_yr_label" in top.columns else "latest year"
+                for _, row in top.iterrows():
+                    if pd.isna(row["yoy_pct"]):
+                        continue
+                    z = (row["yoy_pct"] - mean_yoy) / std_yoy
+                    if abs(z) > 1.5 and abs(row["yoy_pct"]) > 15:
+                        verb = _verb(row["yoy_pct"])
+                        insight = (
+                            f"{prefix} {row['Name']} {verb} year-on-year "
+                            f"({row['yoy_pct']:+.1f}%) to ${row['latest_yr']:.1f}b "
+                            f"in {yr_label}"
+                        )
+                        flagged[row["Name"]] = (abs(z), category, insight)
 
-        for _, row in top.iterrows():
-            if pd.isna(row["yoy_pct"]):
-                continue
-            z = (row["yoy_pct"] - mean_yoy) / std_yoy
-            if abs(z) > 1.5 and abs(row["yoy_pct"]) > 15:
-                verb = _verb(row["yoy_pct"])
-                insight = (
-                    f"{prefix} {row['Name']} {verb} year-on-year "
-                    f"({row['yoy_pct']:+.1f}%) to ${row['latest_yr']:.1f}b "
-                    f"in {yr_label}"
-                )
-                scored.append((abs(z), category, insight))
+        # 3-year % change outliers
+        if "3yr_pct" in top.columns:
+            three_yr = top["3yr_pct"].dropna()
+            if len(three_yr) >= 3:
+                min_pct = three_yr.abs().quantile(0.75)
+                mean_3yr = three_yr.mean()
+                std_3yr = three_yr.std()
+                if std_3yr > 0:
+                    yr_label = top["_latest_yr_label"].iloc[0] if "_latest_yr_label" in top.columns else "latest year"
+                    for _, row in top.iterrows():
+                        if pd.isna(row.get("3yr_pct")):
+                            continue
+                        z = (row["3yr_pct"] - mean_3yr) / std_3yr
+                        if abs(z) > 1.5 and abs(row["3yr_pct"]) > min_pct:
+                            verb = _verb(row["3yr_pct"])
+                            insight = (
+                                f"{prefix} {row['Name']} {verb} vs. 3 years ago "
+                                f"({row['3yr_pct']:+.1f}%) to ${row['latest_yr']:.1f}b "
+                                f"in {yr_label}"
+                            )
+                            # Dedup: keep highest z across YoY/3yr
+                            existing = flagged.get(row["Name"])
+                            if existing is None or abs(z) > existing[0]:
+                                flagged[row["Name"]] = (abs(z), category, insight)
+
+        scored.extend(flagged.values())
 
     scored.sort(key=lambda x: x[0], reverse=True)
     scored = scored[:10]
 
     category_order = ["Service Types", "Partners"]
+    result: Dict[str, List[str]] = {}
+    for cat in category_order:
+        items = [text for _, c, text in scored if c == cat]
+        if items:
+            result[cat] = items
+    return result
+
+
+def generate_financial_insights(
+    fa_data: pd.DataFrame,
+    iip_tables: Dict[str, pd.DataFrame],
+) -> Dict[str, List[str]]:
+    """Generate narrative insights for the Financial tab.
+
+    Analyses:
+    1. Financial Account time series (total + components) for outliers,
+       trends, volatility and persistence changes.
+    2. IIP by-country tables for cross-sectional YoY outliers.
+
+    Returns a dict keyed by category ("Financial Account",
+    "Investment Sources", "Investment Destinations") with lists of
+    insight strings, total capped at 15.
+    """
+
+    scored: List[Tuple[float, str, str]] = []
+
+    # ── 1. Financial Account time series ──────────────────────────
+
+    if "Financial Account" in fa_data.columns:
+        fa_series = fa_data["Financial Account"].dropna()
+        latest_q = (
+            fa_data["TIME_PERIOD"].iloc[-1]
+            if "TIME_PERIOD" in fa_data.columns
+            else "latest quarter"
+        )
+
+        # Deduplication closure (same pattern as generate_insights)
+        _seen: List[Tuple[str, str]] = []
+
+        def _dedup_ok(series_name: str, direction_kw: str) -> bool:
+            sn = series_name.lower()
+            dk = direction_kw.lower()
+            for s, d in _seen:
+                if sn == s and dk == d:
+                    return False
+            return True
+
+        def _mark(series_name: str, direction_kw: str):
+            _seen.append((series_name.lower(), direction_kw.lower()))
+
+        def _format_window(n: int) -> str:
+            years, rem = divmod(n, 4)
+            if rem == 0 and years >= 1:
+                return f"the past year" if years == 1 else f"the past {years} years"
+            return f"the past {n} quarters"
+
+        # --- FA total ---
+        if len(fa_series) >= 5:
+            # Outlier
+            is_outlier, z, val = detect_outlier(fa_series, threshold=1.5)
+            if is_outlier:
+                direction = "inflow" if val > 0 else "outflow"
+                size = "large" if abs(z) > 2 else "notable"
+                insight = f"Financial account recorded a {size} net {direction} of ${abs(val):.1f}bn in {latest_q}"
+                scored.append((abs(z), "Financial Account", insight))
+                _mark("Financial Account", direction)
+
+            # Cumulative trend (4 and 8 quarters)
+            for window, period_desc in [(4, "past year"), (8, "past 2 years")]:
+                is_cum, z_cum, cum_change = detect_cumulative_trend(
+                    fa_series, window=window, threshold=1.3
+                )
+                if is_cum and abs(cum_change) > 3:
+                    dir_word = "shifted toward inflows" if cum_change > 0 else "shifted toward outflows"
+                    if _dedup_ok("Financial Account", dir_word.split()[0]):
+                        insight = f"Financial account has {dir_word} over the {period_desc} (${abs(cum_change):.1f}bn cumulative shift)"
+                        scored.append((2.0, "Financial Account", insight))
+                        _mark("Financial Account", dir_word.split()[0])
+                    break
+
+            # Long-horizon cumulative trend (3yr / 5yr)
+            for window, period_desc in [(20, "past 5 years"), (12, "past 3 years")]:
+                diffs = fa_series.diff(window).dropna()
+                if len(diffs) < 3:
+                    continue
+                min_change = diffs.abs().median()
+                is_cum, z_lh, cum_change = detect_cumulative_trend(fa_series, window=window, threshold=1.5)
+                if is_cum and abs(cum_change) > min_change:
+                    dir_word = "shifted toward inflows" if cum_change > 0 else "shifted toward outflows"
+                    if _dedup_ok("Financial Account", dir_word.split()[0]):
+                        insight = f"Financial account has {dir_word} over the {period_desc} (${abs(cum_change):.1f}bn cumulative shift)"
+                        scored.append((2.0, "Financial Account", insight))
+                        _mark("Financial Account", dir_word.split()[0])
+                    break
+
+            # Large change
+            is_large, z_lc, change = detect_large_change(fa_series, threshold=1.8)
+            if is_large:
+                direction = "swung toward inflows" if change > 0 else "swung toward outflows"
+                if _dedup_ok("Financial Account", "swung"):
+                    insight = f"Financial account {direction} by ${abs(change):.1f}bn in {latest_q}"
+                    scored.append((abs(z_lc), "Financial Account", insight))
+                    _mark("Financial Account", "swung")
+
+            # Rolling trend (adaptive window)
+            w = find_trend_window(fa_series, min_window=4, max_window=40)
+            if len(fa_series) >= w:
+                has_trend, desc, is_flat = detect_rolling_trend(fa_series, window=w)
+                window_desc = _format_window(w)
+                if is_flat and _dedup_ok("Financial Account", "flat"):
+                    insight = f"Financial account has been essentially flat for {window_desc}"
+                    scored.append((2.0, "Financial Account", insight))
+                    _mark("Financial Account", "flat")
+                elif has_trend and desc:
+                    dir_kw = "up" if "up" in desc or "accelerat" in desc else "down"
+                    if _dedup_ok("Financial Account", dir_kw):
+                        if "decelerat" in desc:
+                            insight = f"Financial account has been decelerating — the recent trend is weaker than {window_desc} trend"
+                        elif "accelerat" in desc:
+                            insight = f"Financial account has been accelerating — recent momentum exceeds {window_desc} trend"
+                        else:
+                            direction = "toward larger inflows" if "up" in desc else "toward larger outflows"
+                            insight = f"Financial account has been trending {direction} over {window_desc}"
+                        scored.append((2.0, "Financial Account", insight))
+                        _mark("Financial Account", dir_kw)
+
+            # Volatility change
+            has_vol, vol_dir, ratio = detect_volatility_change(
+                fa_series, recent_window=6, historical_window=6
+            )
+            if has_vol:
+                if vol_dir == "more volatile":
+                    insight = "Financial account has become notably more volatile over the past 6 quarters"
+                else:
+                    insight = "Financial account has stabilised — recent quarterly variation is well below its historical norm"
+                scored.append((2.0, "Financial Account", insight))
+
+            # Persistence change
+            has_pers, pers_dir, r_ar1, b_ar1 = detect_persistence_change(
+                fa_series, window=8, baseline_window=8
+            )
+            if has_pers:
+                if "more" in pers_dir:
+                    insight = "Financial account movements have become more persistent — each change tends to stick rather than reverse"
+                else:
+                    insight = "Financial account has become less predictable from one quarter to the next"
+                scored.append((2.0, "Financial Account", insight))
+
+        # --- FA components ---
+        fa_comp_names = [
+            "Direct Investment",
+            "Portfolio Investment",
+            "Other Investment",
+            "Reserve Assets",
+        ]
+        for comp in fa_comp_names:
+            if comp not in fa_data.columns:
+                continue
+            comp_series = fa_data[comp].dropna()
+            if len(comp_series) < 5:
+                continue
+
+            # Large change
+            is_large, z_lc, change = detect_large_change(comp_series, threshold=1.8)
+            if is_large:
+                direction = "surged" if change > 0 else "dropped"
+                insight = f"{comp} {direction} by ${abs(change):.1f}bn in {latest_q}"
+                scored.append((abs(z_lc), "Financial Account", insight))
+
+            # Cumulative trend
+            is_cum, z_cum, cum_change = detect_cumulative_trend(
+                comp_series, window=4, threshold=1.3
+            )
+            if is_cum and abs(cum_change) > 2:
+                direction = "strengthened" if cum_change > 0 else "weakened"
+                insight = f"{comp} has {direction} over the past year (${abs(cum_change):.1f}bn cumulative shift)"
+                scored.append((2.0, "Financial Account", insight))
+
+            # Long-horizon cumulative trend (3yr)
+            diffs = comp_series.diff(12).dropna()
+            if len(diffs) >= 3:
+                min_change = diffs.abs().median()
+                is_cum, z_lh, cum_lh = detect_cumulative_trend(comp_series, window=12, threshold=1.5)
+                if is_cum and abs(cum_lh) > min_change:
+                    direction = "strengthened" if cum_lh > 0 else "weakened"
+                    insight = f"{comp} has {direction} over the past 3 years (${abs(cum_lh):.1f}bn cumulative shift)"
+                    scored.append((2.0, "Financial Account", insight))
+
+    # ── 2. IIP by-country cross-sectional analysis ────────────────
+
+    iip_meta = {
+        "inward": ("Investment from", "Investment Sources"),
+        "outward": ("Investment in", "Investment Destinations"),
+    }
+
+    def _verb(pct: float) -> str:
+        abs_pct = abs(pct)
+        if pct > 0:
+            if abs_pct > 50:
+                return "surged"
+            elif abs_pct > 20:
+                return "grew strongly"
+            else:
+                return "grew notably"
+        else:
+            if abs_pct > 50:
+                return "plunged"
+            elif abs_pct > 20:
+                return "fell sharply"
+            else:
+                return "declined notably"
+
+    for direction_key, (prefix, category) in iip_meta.items():
+        df = iip_tables.get(direction_key)
+        if df is None or df.empty:
+            continue
+
+        top = df.nlargest(10, "latest_yr").copy()
+        if len(top) < 3:
+            continue
+
+        # Track which items have been flagged (for dedup between YoY and 3yr)
+        flagged: Dict[str, Tuple[float, str, str]] = {}
+
+        yoy = top["yoy_pct"].dropna()
+        if len(yoy) >= 3:
+            mean_yoy = yoy.mean()
+            std_yoy = yoy.std()
+            if std_yoy > 0:
+                yr_label = (
+                    top["_latest_yr_label"].iloc[0]
+                    if "_latest_yr_label" in top.columns
+                    else "latest year"
+                )
+
+                for _, row in top.iterrows():
+                    if pd.isna(row["yoy_pct"]):
+                        continue
+                    z = (row["yoy_pct"] - mean_yoy) / std_yoy
+                    if abs(z) > 1.5 and abs(row["yoy_pct"]) > 15:
+                        verb = _verb(row["yoy_pct"])
+                        insight = (
+                            f"{prefix} {row['Name']} {verb} year-on-year "
+                            f"({row['yoy_pct']:+.1f}%) to ${row['latest_yr']:.0f}bn "
+                            f"in {yr_label}"
+                        )
+                        flagged[row["Name"]] = (abs(z), category, insight)
+
+        # 3-year % change outliers
+        if "3yr_pct" in top.columns:
+            three_yr = top["3yr_pct"].dropna()
+            if len(three_yr) >= 3:
+                min_pct = three_yr.abs().quantile(0.75)
+                mean_3yr = three_yr.mean()
+                std_3yr = three_yr.std()
+                if std_3yr > 0:
+                    for _, row in top.iterrows():
+                        if pd.isna(row.get("3yr_pct")):
+                            continue
+                        z = (row["3yr_pct"] - mean_3yr) / std_3yr
+                        if abs(z) > 1.5 and abs(row["3yr_pct"]) > min_pct:
+                            verb = _verb(row["3yr_pct"])
+                            insight = (
+                                f"{prefix} {row['Name']} {verb} vs. 3 years ago "
+                                f"({row['3yr_pct']:+.1f}%) to ${row['latest_yr']:.0f}bn"
+                            )
+                            # Dedup: keep highest z across YoY/3yr
+                            existing = flagged.get(row["Name"])
+                            if existing is None or abs(z) > existing[0]:
+                                flagged[row["Name"]] = (abs(z), category, insight)
+
+        scored.extend(flagged.values())
+
+    # ── 3. Sort, cap, group ───────────────────────────────────────
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    scored = scored[:15]
+
+    category_order = ["Financial Account", "Investment Sources", "Investment Destinations"]
     result: Dict[str, List[str]] = {}
     for cat in category_order:
         items = [text for _, c, text in scored if c == cat]
@@ -1669,6 +2245,71 @@ def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
     return html
 
 
+def generate_iip_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
+    """Build HTML for the 2 IIP-by-country tables (inward / outward) in a 1x2 grid."""
+
+    titles = {
+        "inward": "Top Investment Source Countries",
+        "outward": "Top Investment Destination Countries",
+    }
+
+    def _fmt_val(v, fmt="bn"):
+        if pd.isna(v):
+            return '<td class="tt-num">\u2014</td>'
+        if fmt == "bn":
+            return f'<td class="tt-num">${v:,.1f}</td>'
+        elif fmt == "pct":
+            color = "#27ae60" if v >= 0 else "#e74c3c"
+            return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
+        elif fmt == "share":
+            return f'<td class="tt-num">{v:.1f}%</td>'
+        return f'<td class="tt-num">{v}</td>'
+
+    def _build_table(key):
+        df = tables.get(key)
+        if df is None or df.empty:
+            return f'<div class="trade-table-wrap"><h3>{titles[key]}</h3><p>Data unavailable</p></div>'
+
+        yr_label = df["_latest_yr_label"].iloc[0] if "_latest_yr_label" in df.columns else "Latest"
+
+        rows_html = ""
+        for _, row in df.iterrows():
+            rows_html += "<tr>"
+            rows_html += f'<td class="tt-name" title="{row["Name"]}">{row["Name"]}</td>'
+            rows_html += _fmt_val(row["latest_yr"], "bn")
+            rows_html += _fmt_val(row["prior_yr"], "bn")
+            rows_html += _fmt_val(row["yoy_pct"], "pct")
+            rows_html += _fmt_val(row["share_pct"], "share")
+            rows_html += "</tr>\n"
+
+        return f"""<div class="trade-table-wrap">
+            <h3>{titles[key]}</h3>
+            <div class="trade-table-scroll">
+                <table class="trade-table">
+                    <thead>
+                        <tr>
+                            <th class="tt-name-hdr">Country</th>
+                            <th class="tt-num-hdr">{yr_label}<br>(A$bn)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>(A$bn)</th>
+                            <th class="tt-num-hdr">YoY<br>(%)</th>
+                            <th class="tt-num-hdr">Share<br>(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html}
+                    </tbody>
+                </table>
+            </div>
+            <p class="trade-table-source">Source: ABS International Investment Position \u2014 Supplementary Statistics (Cat. 5352.0)</p>
+        </div>"""
+
+    html = '<div class="trade-tables-grid">\n'
+    html += _build_table("inward")
+    html += _build_table("outward")
+    html += "</div>\n"
+    return html
+
+
 def create_contributions_chart(
     contributions: pd.DataFrame,
     gdp_growth: pd.DataFrame,
@@ -1753,7 +2394,7 @@ def create_contributions_chart(
 
 def create_current_account_chart(
     ca_data: pd.DataFrame,
-    title: str = "Current Account Balance (Quarterly)"
+    title: str = "Current Account Balance (Quarterly, Seasonally Adjusted)"
 ) -> go.Figure:
     """Create stacked bar chart for current account components."""
 
@@ -2183,6 +2824,8 @@ def create_html_with_insights(
     services_tables_html: str = "",
     services_trade_insights: Dict[str, List[str]] = None,
     financial_fig: go.Figure = None,
+    iip_tables_html: str = "",
+    financial_insights: Dict[str, List[str]] = None,
 ):
     """Create HTML file with dashboard and insights summary box.
 
@@ -2424,6 +3067,9 @@ def create_html_with_insights(
         # 3) Services insights
         services_insights_html = _build_insight_box(services_trade_insights)
 
+        # 4) Financial insights
+        financial_insights_html = _build_insight_box(financial_insights)
+
         # Build financial tab content if provided
         financial_tab_html = ""
         if financial_fig is not None:
@@ -2436,6 +3082,9 @@ def create_html_with_insights(
                 <div class="chart-panel"><div class="chart-container">{fa_chart_html}</div></div>
             </div>
             <p class="source-note">Source: ABS Balance of Payments (Cat. 5302.0) — Original series</p>
+            <h2 class="trade-section-heading">International Investment by Country</h2>
+            {iip_tables_html}
+            {financial_insights_html}
         </div>"""
 
         body_content = f"""
@@ -2673,7 +3322,7 @@ def main():
     trade_charts = create_trade_chart(data["trade"])
 
     # Fetch merchandise trade tables
-    trade_tables_data = get_merch_trade_tables("2023-01")
+    trade_tables_data = get_merch_trade_tables("2021-01")
     trade_tables_html = generate_trade_tables_html(trade_tables_data)
 
     # Fetch services trade tables
@@ -2707,6 +3356,21 @@ def main():
     fa_data = get_financial_account(start_period)
     financial_fig = create_financial_account_chart(fa_data)
 
+    # Fetch IIP by country data
+    print("Fetching international investment by country...")
+    iip_tables_data = get_iip_by_country()
+    iip_tables_html = generate_iip_tables_html(iip_tables_data)
+
+    # Generate financial insights
+    print("Generating financial insights...")
+    financial_insights = generate_financial_insights(fa_data, iip_tables_data)
+    if financial_insights:
+        print("\nFinancial Insights:")
+        for category, items in financial_insights.items():
+            print(f"\n  {category}:")
+            for insight in items:
+                print(f"    • {insight}")
+
     # Save HTML with insights
     create_html_with_insights(
         charts, insights, "dashboard.html",
@@ -2715,6 +3379,8 @@ def main():
         services_tables_html=services_tables_html,
         services_trade_insights=services_trade_insights,
         financial_fig=financial_fig,
+        iip_tables_html=iip_tables_html,
+        financial_insights=financial_insights,
     )
     print("\nSaved: dashboard.html")
 
