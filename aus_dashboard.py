@@ -504,12 +504,13 @@ def _process_merch_table(
     df: pd.DataFrame,
     group_col: str,
     name_lookup: Dict[str, str],
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Process a raw MERCH_EXP / MERCH_IMP CSV into a summary table.
 
-    Returns a DataFrame with columns:
-        Name, latest_qtr, trailing_4q, qoq_pct, yoy_pct, share_pct
-    sorted by trailing_4q descending, top 20 rows.
+    Returns a tuple of (summary_df, pivot_df) where summary_df has columns:
+        Name, _code, latest_qtr, trailing_4q, qoq_pct, yoy_pct, share_pct
+    sorted by trailing_4q descending, top 20 rows; and pivot_df has
+    rows=quarter, cols=code with quarterly values in A$ billions.
     """
     # group_col is either 'SITC' or 'COUNTRY' depending on the breakdown
     df = df.copy()
@@ -534,14 +535,14 @@ def _process_merch_table(
         qtr = qtr[qtr["quarter"] != max_q]
 
     if qtr.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
     # Pivot: rows=quarter, cols=code
     piv = qtr.pivot_table(index="quarter", columns=group_col, values="value", aggfunc="sum")
     piv = piv.sort_index()
 
     if len(piv) < 2:
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
     latest_q = piv.index[-1]
     latest_vals = piv.iloc[-1]
@@ -595,6 +596,7 @@ def _process_merch_table(
         name = COUNTRY_NAME_OVERRIDES.get(name, name)
         records.append({
             "Name": name,
+            "_code": code,
             "latest_qtr": latest_vals.get(code, np.nan),
             "trailing_4q": trailing_4q.get(code, np.nan),
             "qoq_pct": qoq_pct.get(code, np.nan),
@@ -606,7 +608,7 @@ def _process_merch_table(
 
     result = pd.DataFrame(records)
     result = result.sort_values("trailing_4q", ascending=False).head(20).reset_index(drop=True)
-    return result
+    return result, piv
 
 
 # Regional aggregates to exclude from services country tables
@@ -701,10 +703,12 @@ def _process_services_table(
     return result
 
 
-def get_merch_trade_tables(start_period: str = "2023-01") -> Dict[str, pd.DataFrame]:
-    """Fetch merchandise trade data and return 4 summary DataFrames.
+def get_merch_trade_tables(start_period: str = "2023-01") -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
+    """Fetch merchandise trade data and return 4 summary DataFrames plus pivots.
 
-    Keys: 'exp_commodity', 'imp_commodity', 'exp_country', 'imp_country'
+    Returns (tables, pivots) where both are dicts keyed by:
+        'exp_commodity', 'imp_commodity', 'exp_country', 'imp_country'
+    tables values are summary DataFrames; pivots values are quarterly pivot DataFrames.
     """
     print("Fetching merchandise trade codelists...")
     sitc_names = fetch_abs_codelist("CL_MERCH_SITC")
@@ -744,12 +748,18 @@ def get_merch_trade_tables(start_period: str = "2023-01") -> Dict[str, pd.DataFr
     )
 
     tables = {}
-    tables["exp_commodity"] = _process_merch_table(exp_comm, "COMMODITY_SITC", sitc_names)
-    tables["imp_commodity"] = _process_merch_table(imp_comm, "COMMODITY_SITC", sitc_names)
-    tables["exp_country"] = _process_merch_table(exp_ctry, "COUNTRY_DEST", country_names)
-    tables["imp_country"] = _process_merch_table(imp_ctry, "COUNTRY_ORIGIN", country_names)
+    pivots = {}
+    for key, (raw_df, group_col, names) in {
+        "exp_commodity": (exp_comm, "COMMODITY_SITC", sitc_names),
+        "imp_commodity": (imp_comm, "COMMODITY_SITC", sitc_names),
+        "exp_country":   (exp_ctry, "COUNTRY_DEST", country_names),
+        "imp_country":   (imp_ctry, "COUNTRY_ORIGIN", country_names),
+    }.items():
+        summary, piv = _process_merch_table(raw_df, group_col, names)
+        tables[key] = summary
+        pivots[key] = piv
 
-    return tables
+    return tables, pivots
 
 
 def get_services_trade_tables() -> Dict[str, pd.DataFrame]:
@@ -1545,6 +1555,8 @@ def generate_trade_insights(
 
     # Collect (abs_z, category, insight_text) tuples for sorting
     scored: List[Tuple[float, str, str]] = []
+    # Collect chart candidate metadata for merchandise items
+    all_candidates: List[dict] = []
 
     # --- Merchandise table analysis ---
     table_meta = {
@@ -1583,7 +1595,8 @@ def generate_trade_insights(
             continue
 
         # Track which items have been flagged (for dedup between YoY and QoQ)
-        flagged: Dict[str, Tuple[float, str, str]] = {}  # name -> (abs_z, category, insight)
+        # name -> {abs_z, category, insight, name, code, table_key, horizon, pct_change}
+        flagged: Dict[str, dict] = {}
 
         # YoY outliers
         yoy = top["yoy_pct"].dropna()
@@ -1602,7 +1615,12 @@ def generate_trade_insights(
                             f"({row['yoy_pct']:+.1f}%) to ${row['trailing_4q']:.1f}b "
                             f"over the trailing 4 quarters"
                         )
-                        flagged[row["Name"]] = (abs(z), category, insight)
+                        flagged[row["Name"]] = {
+                            "abs_z": abs(z), "category": category, "insight": insight,
+                            "name": row["Name"], "code": row.get("_code", ""),
+                            "table_key": key, "horizon": "yoy",
+                            "pct_change": row["yoy_pct"], "prefix": prefix,
+                        }
 
         # QoQ outliers
         qoq = top["qoq_pct"].dropna()
@@ -1624,8 +1642,13 @@ def generate_trade_insights(
                         )
                         # Dedup: keep higher z-score entry
                         existing = flagged.get(row["Name"])
-                        if existing is None or abs(z) > existing[0]:
-                            flagged[row["Name"]] = (abs(z), category, insight)
+                        if existing is None or abs(z) > existing["abs_z"]:
+                            flagged[row["Name"]] = {
+                                "abs_z": abs(z), "category": category, "insight": insight,
+                                "name": row["Name"], "code": row.get("_code", ""),
+                                "table_key": key, "horizon": "qoq",
+                                "pct_change": row["qoq_pct"], "prefix": prefix,
+                            }
 
         # 3-year % change outliers
         if "3yr_pct" in top.columns:
@@ -1647,10 +1670,17 @@ def generate_trade_insights(
                             )
                             # Dedup: keep highest z across YoY/QoQ/3yr
                             existing = flagged.get(row["Name"])
-                            if existing is None or abs(z) > existing[0]:
-                                flagged[row["Name"]] = (abs(z), category, insight)
+                            if existing is None or abs(z) > existing["abs_z"]:
+                                flagged[row["Name"]] = {
+                                    "abs_z": abs(z), "category": category, "insight": insight,
+                                    "name": row["Name"], "code": row.get("_code", ""),
+                                    "table_key": key, "horizon": "3yr",
+                                    "pct_change": row["3yr_pct"], "prefix": prefix,
+                                }
 
-        scored.extend(flagged.values())
+        scored.extend((v["abs_z"], v["category"], v["insight"]) for v in flagged.values())
+        # Collect candidates from Commodities and Partners categories
+        all_candidates.extend(flagged.values())
 
     # --- Trade flow time series analysis (Goods Balance, Services Balance) ---
     for col_name in ["Goods Balance", "Services Balance"]:
@@ -1715,7 +1745,7 @@ def generate_trade_insights(
         items = [text for _, c, text in scored if c == cat]
         if items:
             result[cat] = items
-    return result
+    return result, all_candidates
 
 
 def generate_services_trade_insights(
@@ -1823,6 +1853,72 @@ def generate_services_trade_insights(
         if items:
             result[cat] = items
     return result
+
+
+def select_insight_chart_items(
+    candidates: List[dict],
+    max_charts: int = 4,
+) -> List[dict]:
+    """Rank trade insight candidates and return top items for charting.
+
+    Prefers longer-horizon changes (3yr > yoy > qoq) and higher z-scores.
+    """
+    horizon_weight = {"3yr": 3, "yoy": 2, "qoq": 1}
+    ranked = sorted(
+        candidates,
+        key=lambda c: (horizon_weight.get(c["horizon"], 0), c["abs_z"]),
+        reverse=True,
+    )
+    return ranked[:max_charts]
+
+
+def create_merch_insight_charts(
+    selected_items: List[dict],
+    pivots: Dict[str, pd.DataFrame],
+) -> List[go.Figure]:
+    """Create a line chart for each selected merchandise insight item.
+
+    Each chart shows the quarterly time series for a single commodity/partner.
+    """
+    colors = ["#4C78A8", "#F58518", "#54A24B", "#E45756"]
+    figs: List[go.Figure] = []
+
+    for i, item in enumerate(selected_items):
+        piv = pivots.get(item["table_key"])
+        if piv is None or piv.empty:
+            continue
+        code = item["code"]
+        if code not in piv.columns:
+            continue
+
+        series = piv[code].dropna()
+        if series.empty:
+            continue
+
+        # Convert PeriodIndex to strings for Plotly
+        x_labels = [str(p) for p in series.index]
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x_labels,
+            y=series.values,
+            mode="lines",
+            line=dict(color=colors[i % len(colors)], width=2.5),
+            hovertemplate="$%{y:.2f}bn<extra></extra>",
+        ))
+        fig.update_layout(
+            template="plotly_white",
+            title=f"{item['prefix']} {item['name']}",
+            height=320,
+            margin=dict(l=60, r=30, t=50, b=60),
+            hovermode="x unified",
+            showlegend=False,
+        )
+        fig.update_xaxes(tickangle=-45)
+        fig.update_yaxes(title_text="A$ Billion")
+        figs.append(fig)
+
+    return figs
 
 
 def generate_financial_insights(
@@ -2538,17 +2634,6 @@ def create_financial_account_chart(
         margin=dict(l=60, r=40, t=100, b=80),
     )
 
-    # Add annotation for data source
-    fig.add_annotation(
-        text="Source: ABS Balance of Payments (Cat. 5302.0) — Original series",
-        xref="paper",
-        yref="paper",
-        x=0,
-        y=-0.18,
-        showarrow=False,
-        font=dict(size=10, color="gray"),
-    )
-
     return fig
 
 
@@ -2713,7 +2798,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
         ))
 
     ca_fig.update_layout(
-        **_common, barmode="relative", title="Current Account Balance",
+        **_common, barmode="relative", title="Current Account Balance (Seasonally Adjusted)",
         height=420, margin=dict(l=60, r=30, t=50, b=80),
     )
     ca_fig.update_xaxes(tickangle=-45, dtick=4)
@@ -2821,6 +2906,7 @@ def create_html_with_insights(
     trade_figs: List[go.Figure] = None,
     trade_tables_html: str = "",
     trade_insights: Dict[str, List[str]] = None,
+    goods_insight_figs: List[go.Figure] = None,
     services_tables_html: str = "",
     services_trade_insights: Dict[str, List[str]] = None,
     financial_fig: go.Figure = None,
@@ -2899,6 +2985,7 @@ def create_html_with_insights(
             <button class="tab-btn active" onclick="switchTab('overview')">Big Picture</button>
             <button class="tab-btn" onclick="switchTab('trade')">Trade</button>
             {financial_tab_btn}
+            <button class="tab-btn" onclick="switchTab('report')">Report</button>
         </div>"""
 
         tab_css = """
@@ -3064,11 +3151,71 @@ def create_html_with_insights(
                     goods_insight_dict[cat] = trade_insights[cat]
         goods_insights_html = _build_insight_box(goods_insight_dict)
 
+        # 2b) Goods insight charts
+        goods_insight_charts_html = ""
+        if goods_insight_figs:
+            gi_panels = []
+            for gi_fig in goods_insight_figs:
+                gi_html = gi_fig.to_html(
+                    full_html=False, include_plotlyjs=False, config={'responsive': True}
+                )
+                gi_panels.append(
+                    f'<div class="chart-panel"><div class="chart-container">{gi_html}</div></div>'
+                )
+            goods_insight_charts_html = f"""
+            <div class="charts-row charts-row-2">{"".join(gi_panels)}</div>"""
+
         # 3) Services insights
         services_insights_html = _build_insight_box(services_trade_insights)
 
         # 4) Financial insights
         financial_insights_html = _build_insight_box(financial_insights)
+
+        # Build Report tab: consolidate all insights from every tab
+        report_sections = []
+        # Big Picture insights
+        if insights:
+            bp_html = _build_insight_box(insights)
+            if bp_html:
+                report_sections.append(
+                    '<h2 class="trade-section-heading">Big Picture</h2>' + bp_html
+                )
+        # Trade — Goods insights (Trade Balance + Commodities + Partners)
+        goods_all = {}
+        if trade_insights:
+            for cat in ["Trade Balance", "Commodities", "Partners"]:
+                if cat in trade_insights and trade_insights[cat]:
+                    goods_all[cat] = trade_insights[cat]
+        if goods_all:
+            report_sections.append(
+                '<h2 class="trade-section-heading">Trade \u2014 Goods</h2>'
+                + _build_insight_box(goods_all)
+            )
+        # Trade — Services insights
+        if services_trade_insights:
+            svc_html = _build_insight_box(services_trade_insights)
+            if svc_html:
+                report_sections.append(
+                    '<h2 class="trade-section-heading">Trade \u2014 Services</h2>'
+                    + svc_html
+                )
+        # Financial insights
+        if financial_insights:
+            fin_html = _build_insight_box(financial_insights)
+            if fin_html:
+                report_sections.append(
+                    '<h2 class="trade-section-heading">Financial</h2>' + fin_html
+                )
+        if report_sections:
+            report_tab_html = f"""
+        <div id="tab-report" class="tab-content">
+            {"".join(report_sections)}
+        </div>"""
+        else:
+            report_tab_html = """
+        <div id="tab-report" class="tab-content">
+            <div class="insights-box"><p>No insights available.</p></div>
+        </div>"""
 
         # Build financial tab content if provided
         financial_tab_html = ""
@@ -3101,11 +3248,13 @@ def create_html_with_insights(
             <h2 class="trade-section-heading">Goods Trade</h2>
             {trade_tables_html}
             {goods_insights_html}
+            {goods_insight_charts_html}
             <h2 class="trade-section-heading">Services Trade</h2>
             {services_tables_html}
             {services_insights_html}
         </div>
         {financial_tab_html}
+        {report_tab_html}
         {tab_js}"""
     else:
         tab_css = ""
@@ -3322,7 +3471,7 @@ def main():
     trade_charts = create_trade_chart(data["trade"])
 
     # Fetch merchandise trade tables
-    trade_tables_data = get_merch_trade_tables("2021-01")
+    trade_tables_data, trade_pivots = get_merch_trade_tables("2021-01")
     trade_tables_html = generate_trade_tables_html(trade_tables_data)
 
     # Fetch services trade tables
@@ -3331,7 +3480,7 @@ def main():
 
     # Generate trade insights
     print("Generating trade insights...")
-    trade_insights = generate_trade_insights(trade_tables_data, data["trade"])
+    trade_insights, trade_insight_candidates = generate_trade_insights(trade_tables_data, data["trade"])
 
     if trade_insights:
         print("\nTrade Insights:")
@@ -3339,6 +3488,14 @@ def main():
             print(f"\n  {category}:")
             for insight in items:
                 print(f"    • {insight}")
+
+    # Select and create goods insight charts
+    goods_chart_items = select_insight_chart_items(trade_insight_candidates)
+    goods_insight_figs = create_merch_insight_charts(goods_chart_items, trade_pivots)
+    if goods_insight_figs:
+        print(f"\nGenerated {len(goods_insight_figs)} goods insight charts:")
+        for item in goods_chart_items[:len(goods_insight_figs)]:
+            print(f"    • {item['prefix']} {item['name']} ({item['horizon']}, z={item['abs_z']:.1f})")
 
     # Generate services trade insights
     print("Generating services trade insights...")
@@ -3376,6 +3533,7 @@ def main():
         charts, insights, "dashboard.html",
         trade_figs=trade_charts, trade_tables_html=trade_tables_html,
         trade_insights=trade_insights,
+        goods_insight_figs=goods_insight_figs,
         services_tables_html=services_tables_html,
         services_trade_insights=services_trade_insights,
         financial_fig=financial_fig,
