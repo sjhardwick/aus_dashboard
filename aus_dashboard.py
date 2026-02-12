@@ -478,11 +478,6 @@ def get_iip_by_country() -> Dict[str, pd.DataFrame]:
 
         out_df = pd.DataFrame(records)
         if not out_df.empty:
-            # Compute share %
-            if total_value and total_value > 0:
-                out_df["share_pct"] = (out_df["latest_yr"] / total_value) * 100
-            else:
-                out_df["share_pct"] = np.nan
             out_df = out_df.sort_values("latest_yr", ascending=False).head(15).reset_index(drop=True)
 
         result[direction] = out_df
@@ -561,7 +556,7 @@ def _process_merch_table(
     """Process a raw MERCH_EXP / MERCH_IMP CSV into a summary table.
 
     Returns a tuple of (summary_df, pivot_df) where summary_df has columns:
-        Name, _code, latest_qtr, trailing_4q, qoq_pct, yoy_pct, share_pct
+        Name, _code, latest_qtr, trailing_4q, qoq_pct, yoy_pct
     sorted by trailing_4q descending, top 20 rows; and pivot_df has
     rows=quarter, cols=code with quarterly values in A$ billions.
     """
@@ -622,10 +617,6 @@ def _process_merch_table(
     else:
         three_yr_pct = pd.Series(np.nan, index=piv.columns)
 
-    # Share %
-    total_trailing = trailing_4q.sum()
-    share_pct = (trailing_4q / total_trailing) * 100 if total_trailing != 0 else trailing_4q * 0
-
     # Build result
     records = []
     for code in piv.columns:
@@ -655,7 +646,6 @@ def _process_merch_table(
             "qoq_pct": qoq_pct.get(code, np.nan),
             "yoy_pct": yoy_pct.get(code, np.nan),
             "3yr_pct": three_yr_pct.get(code, np.nan),
-            "share_pct": share_pct.get(code, np.nan),
             "_latest_q_label": str(latest_q),
         })
 
@@ -681,7 +671,7 @@ def _process_services_table(
     """Process a raw services trade CSV into a summary table.
 
     Returns a DataFrame with columns:
-        Name, latest_yr, prior_yr, yoy_pct, share_pct, _latest_yr_label
+        Name, latest_yr, prior_yr, yoy_pct, _latest_yr_label
     sorted by latest_yr descending, top 15 rows.
     """
     df = df.copy()
@@ -730,9 +720,6 @@ def _process_services_table(
     else:
         three_yr_pct = pd.Series(np.nan, index=piv.columns)
 
-    total_latest = latest_vals.sum()
-    share_pct = (latest_vals / total_latest) * 100 if total_latest != 0 else latest_vals * 0
-
     # Determine year label (detect FY vs CY from TIME_PERIOD format)
     yr_str = str(latest_yr)
     yr_label = f"FY{yr_str}" if "-" in yr_str else yr_str
@@ -747,7 +734,6 @@ def _process_services_table(
             "prior_yr": prior_vals.get(code, np.nan),
             "yoy_pct": yoy_pct.get(code, np.nan),
             "3yr_pct": three_yr_pct.get(code, np.nan),
-            "share_pct": share_pct.get(code, np.nan),
             "_latest_yr_label": yr_label,
         })
 
@@ -2469,8 +2455,6 @@ def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
         elif fmt == "pct":
             color = COLOR_POSITIVE if v >= 0 else COLOR_NEGATIVE
             return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
-        elif fmt == "share":
-            return f'<td class="tt-num">{v:.1f}%</td>'
         return f'<td class="tt-num">{v}</td>'
 
     def _build_table(key):
@@ -2488,7 +2472,6 @@ def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
             rows_html += _fmt_val(row["trailing_4q"], "bn")
             rows_html += _fmt_val(row["qoq_pct"], "pct")
             rows_html += _fmt_val(row["yoy_pct"], "pct")
-            rows_html += _fmt_val(row["share_pct"], "share")
             rows_html += "</tr>\n"
 
         return f"""<div class="trade-table-wrap">
@@ -2502,7 +2485,6 @@ def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
                             <th class="tt-num-hdr">Trail 4Q<br>($bn)</th>
                             <th class="tt-num-hdr">QoQ<br>(%)</th>
                             <th class="tt-num-hdr">YoY<br>(%)</th>
-                            <th class="tt-num-hdr">Share<br>(%)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2541,8 +2523,6 @@ def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
         elif fmt == "pct":
             color = COLOR_POSITIVE if v >= 0 else COLOR_NEGATIVE
             return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
-        elif fmt == "share":
-            return f'<td class="tt-num">{v:.1f}%</td>'
         return f'<td class="tt-num">{v}</td>'
 
     def _build_table(key):
@@ -2559,7 +2539,6 @@ def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
             rows_html += _fmt_val(row["latest_yr"], "bn")
             rows_html += _fmt_val(row["prior_yr"], "bn")
             rows_html += _fmt_val(row["yoy_pct"], "pct")
-            rows_html += _fmt_val(row["share_pct"], "share")
             rows_html += "</tr>\n"
 
         return f"""<div class="trade-table-wrap">
@@ -2572,7 +2551,6 @@ def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
                             <th class="tt-num-hdr">{yr_label}<br>($bn)</th>
                             <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
                             <th class="tt-num-hdr">YoY<br>(%)</th>
-                            <th class="tt-num-hdr">Share<br>(%)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2608,8 +2586,6 @@ def generate_iip_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
         elif fmt == "pct":
             color = COLOR_POSITIVE if v >= 0 else COLOR_NEGATIVE
             return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
-        elif fmt == "share":
-            return f'<td class="tt-num">{v:.1f}%</td>'
         return f'<td class="tt-num">{v}</td>'
 
     def _build_table(key):
@@ -2626,7 +2602,6 @@ def generate_iip_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
             rows_html += _fmt_val(row["latest_yr"], "bn")
             rows_html += _fmt_val(row["prior_yr"], "bn")
             rows_html += _fmt_val(row["yoy_pct"], "pct")
-            rows_html += _fmt_val(row["share_pct"], "share")
             rows_html += "</tr>\n"
 
         return f"""<div class="trade-table-wrap">
@@ -2639,7 +2614,6 @@ def generate_iip_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
                             <th class="tt-num-hdr">{yr_label}<br>(A$bn)</th>
                             <th class="tt-num-hdr">Prior Yr<br>(A$bn)</th>
                             <th class="tt-num-hdr">YoY<br>(%)</th>
-                            <th class="tt-num-hdr">Share<br>(%)</th>
                         </tr>
                     </thead>
                     <tbody>
