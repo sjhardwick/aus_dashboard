@@ -1485,14 +1485,14 @@ def generate_insights(
         if is_outlier:
             direction = "surplus" if val > 0 else "deficit"
             size = "large" if abs(z) > 2 else "notable"
-            insights["Current Account"].append(f"Current account recorded a {size} {direction} of ${abs(val):.1f}bn in {latest_ca_period}")
+            insights["Current Account"].append(f"Current account recorded a {size} {direction} of ${abs(val):.1f}b in {latest_ca_period}")
 
         # Check for cumulative trend (4 and 8 quarters)
         for window, period_desc in [(4, "past year"), (8, "past 2 years")]:
             is_cum_trend, z, cum_change = detect_cumulative_trend(ca_series, window=window, threshold=1.3)
             if is_cum_trend and abs(cum_change) > 3:
                 direction = "risen" if cum_change > 0 else "fallen"
-                insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}")
+                insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}b over the {period_desc}")
                 break
 
         # Long-horizon cumulative trend (3yr / 5yr)
@@ -1504,7 +1504,7 @@ def generate_insights(
             is_cum_trend, z, cum_change = detect_cumulative_trend(ca_series, window=window, threshold=1.5)
             if is_cum_trend and abs(cum_change) > min_change:
                 direction = "risen" if cum_change > 0 else "fallen"
-                insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}")
+                insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}b over the {period_desc}")
                 break
 
     # Check CA components
@@ -1514,7 +1514,7 @@ def generate_insights(
             is_cum_trend, z, cum_change = detect_cumulative_trend(series, window=4, threshold=1.3)
             if is_cum_trend and abs(cum_change) > 1.5:
                 direction = "risen" if cum_change > 0 else "fallen"
-                insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_change):.1f}bn over the past year")
+                insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_change):.1f}b over the past year")
 
             # Long-horizon (3yr)
             diffs = series.diff(12).dropna()
@@ -1523,7 +1523,7 @@ def generate_insights(
                 is_cum, z_lh, cum_lh = detect_cumulative_trend(series, window=12, threshold=1.5)
                 if is_cum and abs(cum_lh) > min_change:
                     direction = "risen" if cum_lh > 0 else "fallen"
-                    insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_lh):.1f}bn over the past 3 years")
+                    insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_lh):.1f}b over the past 3 years")
 
     # ----- Inflation Analysis -----
     if "Trimmed Mean" in inflation_data.columns:
@@ -1957,7 +1957,7 @@ def generate_trade_insights(
         if is_large:
             direction = "widened" if change > 0 else "narrowed"
             insight = (
-                f"{col_name} {direction} sharply by ${abs(change):.1f}bn "
+                f"{col_name} {direction} sharply by ${abs(change):.1f}b "
                 f"in {latest_q}"
             )
             scored.append((abs(z), "Trade Balance", insight))
@@ -1971,7 +1971,7 @@ def generate_trade_insights(
             is_cum, z_lh, cum_change = detect_cumulative_trend(series, window=window, threshold=1.5)
             if is_cum and abs(cum_change) > min_change:
                 direction = "expanded" if cum_change > 0 else "contracted"
-                insight = f"{col_name} has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}"
+                insight = f"{col_name} has {direction} by ${abs(cum_change):.1f}b over the {period_desc}"
                 scored.append((abs(z_lh), "Trade Balance", insight))
                 break
 
@@ -2143,7 +2143,7 @@ def create_merch_insight_charts(
             y=series.values,
             mode="lines",
             line=dict(color=COLOR_PRIMARY, width=2.5),
-            hovertemplate="$%{y:.2f}bn<extra></extra>",
+            hovertemplate="$%{y:.2f}b<extra></extra>",
         ))
         fig.update_layout(
             title=f"{item['prefix']} {item['name']}",
@@ -2213,7 +2213,7 @@ def generate_financial_insights(
             if is_outlier:
                 direction = "inflow" if val > 0 else "outflow"
                 size = "large" if abs(z) > 2 else "notable"
-                insight = f"Financial account recorded a {size} net {direction} of ${abs(val):.1f}bn in {latest_q}"
+                insight = f"Financial account recorded a {size} net {direction} of ${abs(val):.1f}b in {latest_q}"
                 scored.append((abs(z), "Financial Account", insight))
                 _mark("Financial Account", direction)
 
@@ -2225,7 +2225,7 @@ def generate_financial_insights(
                 if is_cum and abs(cum_change) > 3:
                     dir_word = "shifted toward inflows" if cum_change > 0 else "shifted toward outflows"
                     if _dedup_ok("Financial Account", dir_word.split()[0]):
-                        insight = f"Financial account has {dir_word} over the {period_desc} (${abs(cum_change):.1f}bn cumulative shift)"
+                        insight = f"Financial account has {dir_word} over the {period_desc} (${abs(cum_change):.1f}b cumulative shift)"
                         scored.append((2.0, "Financial Account", insight))
                         _mark("Financial Account", dir_word.split()[0])
                     break
@@ -2240,7 +2240,7 @@ def generate_financial_insights(
                 if is_cum and abs(cum_change) > min_change:
                     dir_word = "shifted toward inflows" if cum_change > 0 else "shifted toward outflows"
                     if _dedup_ok("Financial Account", dir_word.split()[0]):
-                        insight = f"Financial account has {dir_word} over the {period_desc} (${abs(cum_change):.1f}bn cumulative shift)"
+                        insight = f"Financial account has {dir_word} over the {period_desc} (${abs(cum_change):.1f}b cumulative shift)"
                         scored.append((2.0, "Financial Account", insight))
                         _mark("Financial Account", dir_word.split()[0])
                     break
@@ -2250,7 +2250,7 @@ def generate_financial_insights(
             if is_large:
                 direction = "swung toward inflows" if change > 0 else "swung toward outflows"
                 if _dedup_ok("Financial Account", "swung"):
-                    insight = f"Financial account {direction} by ${abs(change):.1f}bn in {latest_q}"
+                    insight = f"Financial account {direction} by ${abs(change):.1f}b in {latest_q}"
                     scored.append((abs(z_lc), "Financial Account", insight))
                     _mark("Financial Account", "swung")
 
@@ -2316,7 +2316,7 @@ def generate_financial_insights(
             is_large, z_lc, change = detect_large_change(comp_series, threshold=1.8)
             if is_large:
                 direction = "surged" if change > 0 else "dropped"
-                insight = f"{comp} {direction} by ${abs(change):.1f}bn in {latest_q}"
+                insight = f"{comp} {direction} by ${abs(change):.1f}b in {latest_q}"
                 scored.append((abs(z_lc), "Financial Account", insight))
 
             # Cumulative trend
@@ -2325,7 +2325,7 @@ def generate_financial_insights(
             )
             if is_cum and abs(cum_change) > 2:
                 direction = "strengthened" if cum_change > 0 else "weakened"
-                insight = f"{comp} has {direction} over the past year (${abs(cum_change):.1f}bn cumulative shift)"
+                insight = f"{comp} has {direction} over the past year (${abs(cum_change):.1f}b cumulative shift)"
                 scored.append((2.0, "Financial Account", insight))
 
             # Long-horizon cumulative trend (3yr)
@@ -2335,7 +2335,7 @@ def generate_financial_insights(
                 is_cum, z_lh, cum_lh = detect_cumulative_trend(comp_series, window=12, threshold=1.5)
                 if is_cum and abs(cum_lh) > min_change:
                     direction = "strengthened" if cum_lh > 0 else "weakened"
-                    insight = f"{comp} has {direction} over the past 3 years (${abs(cum_lh):.1f}bn cumulative shift)"
+                    insight = f"{comp} has {direction} over the past 3 years (${abs(cum_lh):.1f}b cumulative shift)"
                     scored.append((2.0, "Financial Account", insight))
 
     # ── 2. IIP by-country cross-sectional analysis ────────────────
@@ -2393,7 +2393,7 @@ def generate_financial_insights(
                         verb = _verb(row["yoy_pct"])
                         insight = (
                             f"{prefix} {row['Name']} {verb} year-on-year "
-                            f"({row['yoy_pct']:+.1f}%) to ${row['latest_yr']:.0f}bn "
+                            f"({row['yoy_pct']:+.1f}%) to ${row['latest_yr']:.0f}b "
                             f"in {yr_label}"
                         )
                         flagged[row["Name"]] = (abs(z), category, insight)
@@ -2414,7 +2414,7 @@ def generate_financial_insights(
                             verb = _verb(row["3yr_pct"])
                             insight = (
                                 f"{prefix} {row['Name']} {verb} vs. 3 years ago "
-                                f"({row['3yr_pct']:+.1f}%) to ${row['latest_yr']:.0f}bn"
+                                f"({row['3yr_pct']:+.1f}%) to ${row['latest_yr']:.0f}b"
                             )
                             # Dedup: keep highest z across YoY/3yr
                             existing = flagged.get(row["Name"])
@@ -2481,8 +2481,8 @@ def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
                     <thead>
                         <tr>
                             <th class="tt-name-hdr">Name</th>
-                            <th class="tt-num-hdr">{q_label}<br>($bn)</th>
-                            <th class="tt-num-hdr">Trail 4Q<br>($bn)</th>
+                            <th class="tt-num-hdr">{q_label}<br>($b)</th>
+                            <th class="tt-num-hdr">Trail 4Q<br>($b)</th>
                             <th class="tt-num-hdr">QoQ<br>(%)</th>
                             <th class="tt-num-hdr">YoY<br>(%)</th>
                         </tr>
@@ -2548,8 +2548,8 @@ def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
                     <thead>
                         <tr>
                             <th class="tt-name-hdr">Name</th>
-                            <th class="tt-num-hdr">{yr_label}<br>($bn)</th>
-                            <th class="tt-num-hdr">Prior Yr<br>($bn)</th>
+                            <th class="tt-num-hdr">{yr_label}<br>($b)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>($b)</th>
                             <th class="tt-num-hdr">YoY<br>(%)</th>
                         </tr>
                     </thead>
@@ -2611,8 +2611,8 @@ def generate_iip_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
                     <thead>
                         <tr>
                             <th class="tt-name-hdr">Country</th>
-                            <th class="tt-num-hdr">{yr_label}<br>(A$bn)</th>
-                            <th class="tt-num-hdr">Prior Yr<br>(A$bn)</th>
+                            <th class="tt-num-hdr">{yr_label}<br>(A$b)</th>
+                            <th class="tt-num-hdr">Prior Yr<br>(A$b)</th>
                             <th class="tt-num-hdr">YoY<br>(%)</th>
                         </tr>
                     </thead>
@@ -2721,7 +2721,7 @@ def create_current_account_chart(
                 x=df["TIME_PERIOD"],
                 y=df[comp],
                 marker_color=CA_BAR_COLORS.get(comp, "#94A3B8"),
-                hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
+                hovertemplate=f"{comp}: $%{{y:.1f}}b<extra></extra>",
             ))
 
     # Add current account balance line
@@ -2733,7 +2733,7 @@ def create_current_account_chart(
             mode="lines+markers",
             line=dict(color=COLOR_PRIMARY, width=2.5),
             marker=dict(size=6, color=COLOR_PRIMARY),
-            hovertemplate="CA: $%{y:.1f}bn<extra></extra>",
+            hovertemplate="CA: $%{y:.1f}b<extra></extra>",
         ))
 
     # Update layout
@@ -2789,7 +2789,7 @@ def create_financial_account_chart(
                 x=df["TIME_PERIOD"],
                 y=df[comp],
                 marker_color=FA_BAR_COLORS.get(comp, "#94A3B8"),
-                hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
+                hovertemplate=f"{comp}: $%{{y:.1f}}b<extra></extra>",
             ))
 
     # Add financial account total line
@@ -2801,7 +2801,7 @@ def create_financial_account_chart(
             mode="lines+markers",
             line=dict(color=COLOR_PRIMARY, width=3),
             marker=dict(size=6, color=COLOR_PRIMARY),
-            hovertemplate="FA: $%{y:.1f}bn<extra></extra>",
+            hovertemplate="FA: $%{y:.1f}b<extra></extra>",
         ))
 
     # Update layout
@@ -2856,7 +2856,7 @@ def create_trade_chart(
             x=df["TIME_PERIOD"],
             y=df["Goods Balance"],
             marker_color="rgba(17,24,39,0.3)",
-            hovertemplate="Goods Balance: $%{y:.1f}bn<extra></extra>",
+            hovertemplate="Goods Balance: $%{y:.1f}b<extra></extra>",
         ))
 
     for comp in ["Goods Credits", "Goods Debits"]:
@@ -2867,7 +2867,7 @@ def create_trade_chart(
                 y=df[comp],
                 mode="lines",
                 line=dict(color=_trade_line[comp], width=2),
-                hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
+                hovertemplate=f"{comp}: $%{{y:.1f}}b<extra></extra>",
             ))
 
     goods_fig.update_layout(**_common, title="Goods")
@@ -2883,7 +2883,7 @@ def create_trade_chart(
             x=df["TIME_PERIOD"],
             y=df["Services Balance"],
             marker_color="rgba(17,24,39,0.3)",
-            hovertemplate="Services Balance: $%{y:.1f}bn<extra></extra>",
+            hovertemplate="Services Balance: $%{y:.1f}b<extra></extra>",
         ))
 
     for comp in ["Services Credits", "Services Debits"]:
@@ -2894,7 +2894,7 @@ def create_trade_chart(
                 y=df[comp],
                 mode="lines",
                 line=dict(color=_trade_line[comp], width=2),
-                hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
+                hovertemplate=f"{comp}: $%{{y:.1f}}b<extra></extra>",
             ))
 
     services_fig.update_layout(**_common, title="Services")
@@ -2980,7 +2980,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
                 x=ca_data["TIME_PERIOD"],
                 y=ca_data[comp],
                 marker_color=CA_BAR_COLORS.get(comp, "#94A3B8"),
-                hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
+                hovertemplate=f"{comp}: $%{{y:.1f}}b<extra></extra>",
             ))
 
     if "Current Account" in ca_data.columns:
@@ -2991,7 +2991,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             mode="lines+markers",
             line=dict(color=COLOR_PRIMARY, width=2.5),
             marker=dict(size=4, color=COLOR_PRIMARY),
-            hovertemplate="CA: $%{y:.1f}bn<extra></extra>",
+            hovertemplate="CA: $%{y:.1f}b<extra></extra>",
         ))
 
     ca_fig.update_layout(
@@ -2999,7 +2999,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
         height=420,
     )
     ca_fig.update_xaxes(tickangle=-45, dtick=4)
-    ca_fig.update_yaxes(title_text="A$bn")
+    ca_fig.update_yaxes(title_text="A$b")
     apply_dashboard_theme(ca_fig, focus_traces=["Current Account"])
 
     # ===== 3. Inflation =====
