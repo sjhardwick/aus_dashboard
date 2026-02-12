@@ -15,6 +15,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Tuple
+from datetime import date, timedelta
+from bs4 import BeautifulSoup
 
 # ABS API Configuration
 ABS_API_BASE = "https://data.api.abs.gov.au/rest/data"
@@ -105,6 +107,17 @@ FA_COMPONENTS = {
     8835: "Financial Derivatives",
     8850: "Other Investment",
     8865: "Reserve Assets",
+}
+
+# ABS release calendar — publication titles that feed this dashboard
+CALENDAR_SERIES = {
+    "Australian National Accounts: National Income, Expenditure and Product": "Big Picture (GDP)",
+    "Balance of Payments and International Investment Position": "Big Picture / Trade / Financial",
+    "Labour Force, Australia, Detailed": "Big Picture (Labour)",
+    "Labour Force, Australia": "Big Picture (Labour)",
+    "Consumer Price Index, Australia": "Big Picture (CPI)",
+    "International Trade in Goods": "Trade (Goods)",
+    "International Trade: Supplementary Information": "Trade (Services)",
 }
 
 
@@ -1195,6 +1208,207 @@ def find_trend_window(
             return k
 
     return max_window
+
+
+# ── ABS Release Calendar ──────────────────────────────────────────────
+
+def fetch_release_calendar() -> list:
+    """Fetch upcoming and recent ABS release dates for dashboard-relevant series.
+
+    Scrapes two ABS web pages:
+    - future-releases-calendar/YYYYMM  (current + next 3 months)
+    - latest-releases?page=N            (previous month)
+
+    Returns a list of dicts sorted by date:
+        {"title": str, "date": date, "ref_period": str, "dashboard_section": str}
+    """
+    releases = []
+    today = date.today()
+
+    def _match_title(title: str):
+        """Return dashboard_section if title matches a tracked series, else None."""
+        for key, section in CALENDAR_SERIES.items():
+            if title.startswith(key):
+                return section
+        return None
+
+    # ── 1. Future / current months ────────────────────────────────────
+    first_of_month = today.replace(day=1)
+    for month_offset in range(4):  # current month + 3 ahead
+        m = first_of_month.month + month_offset
+        y = first_of_month.year + (m - 1) // 12
+        m = (m - 1) % 12 + 1
+        yyyymm = f"{y}{m:02d}"
+        url = f"https://www.abs.gov.au/release-calendar/future-releases-calendar/{yyyymm}"
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"  Warning: could not fetch {url}: {e}")
+            continue
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for strong in soup.select("strong.event-name"):
+            title = strong.get_text(strip=True)
+            section = _match_title(title)
+            if section is None:
+                continue
+            container = strong.parent
+            # Reference period
+            ref_span = container.find("span", class_="reference-period-value")
+            ref_period = ref_span.get_text(strip=True) if ref_span else ""
+            # Date from <time datetime="...">
+            time_tag = container.find("time")
+            if time_tag and time_tag.get("datetime"):
+                dt_str = time_tag["datetime"][:10]  # "2026-03-03"
+                try:
+                    release_date = date.fromisoformat(dt_str)
+                except ValueError:
+                    continue
+            else:
+                continue
+            releases.append({
+                "title": title,
+                "date": release_date,
+                "ref_period": ref_period,
+                "dashboard_section": section,
+            })
+
+    # ── 2. Previous month — paginated latest-releases ─────────────────
+    prev_month_start = (first_of_month - timedelta(days=1)).replace(day=1)
+    for page_num in range(15):  # safety cap
+        url = f"https://www.abs.gov.au/release-calendar/latest-releases?page={page_num}"
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"  Warning: could not fetch {url}: {e}")
+            break
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        rows = soup.select("div.views-row")
+        if not rows:
+            break
+
+        gone_past = False
+        for row in rows:
+            time_tag = row.find("time")
+            if not time_tag or not time_tag.get("datetime"):
+                continue
+            dt_str = time_tag["datetime"][:10]
+            try:
+                release_date = date.fromisoformat(dt_str)
+            except ValueError:
+                continue
+
+            # Stop once we've gone before the previous month
+            if release_date < prev_month_start:
+                gone_past = True
+                break
+
+            # Skip entries from current month (already covered by future calendar)
+            if release_date >= first_of_month:
+                continue
+
+            # Match on the subtitle (publication name), not the headline
+            subtitle_div = row.find("div", class_="release__subtitle")
+            subtitle = subtitle_div.get_text(strip=True) if subtitle_div else ""
+            section = _match_title(subtitle)
+            if section is None:
+                continue
+
+            releases.append({
+                "title": subtitle,
+                "date": release_date,
+                "ref_period": "",
+                "dashboard_section": section,
+            })
+
+        if gone_past:
+            break
+
+    # Deduplicate (same title + same date)
+    seen = set()
+    unique = []
+    for r in releases:
+        key = (r["title"], r["date"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(r)
+
+    unique.sort(key=lambda r: r["date"])
+    return unique
+
+
+def generate_calendar_tab_html(releases: list) -> str:
+    """Generate an HTML table of ABS release dates for the Calendar tab."""
+    if not releases:
+        return (
+            '<div class="trade-table-wrap" style="max-width:900px;margin:24px auto;">'
+            "<p>Release calendar unavailable — could not fetch data from ABS.</p>"
+            "</div>"
+        )
+
+    today = date.today()
+
+    # Find the next upcoming release (first future date)
+    next_release_date = None
+    for r in releases:
+        if r["date"] >= today:
+            next_release_date = r["date"]
+            break
+
+    rows_html = []
+    prev_was_past = True  # track separator between past/future
+    for r in releases:
+        is_past = r["date"] < today
+        is_highlight = r["date"] == next_release_date
+
+        # Insert separator when crossing from past to future
+        if prev_was_past and not is_past and rows_html:
+            rows_html.append(
+                f'<tr><td colspan="4" style="border-bottom:2px solid {COLOR_PRIMARY};'
+                f'padding:0;height:4px;"></td></tr>'
+            )
+        prev_was_past = is_past
+
+        # Row styling
+        style = ""
+        if is_highlight:
+            style = f' style="background:{COLOR_PRIMARY}0D;font-weight:600;"'
+        elif is_past:
+            style = f' style="color:{TEXT_MUTED};"'
+
+        date_str = r["date"].strftime("%a %d %b %Y")
+        rows_html.append(
+            f"<tr{style}>"
+            f'<td class="tt-num" style="white-space:nowrap;">{date_str}</td>'
+            f'<td class="tt-name" style="max-width:350px;">{r["title"]}</td>'
+            f'<td class="tt-num">{r["ref_period"]}</td>'
+            f'<td class="tt-name">{r["dashboard_section"]}</td>'
+            f"</tr>"
+        )
+
+    return f"""
+    <div class="trade-table-wrap" style="max-width:900px;margin:24px auto;">
+        <h3>ABS Release Calendar</h3>
+        <div class="trade-table-scroll" style="max-height:600px;">
+            <table class="trade-table">
+                <thead>
+                    <tr>
+                        <th class="tt-name-hdr">Date</th>
+                        <th class="tt-name-hdr">Release</th>
+                        <th class="tt-name-hdr">Reference Period</th>
+                        <th class="tt-name-hdr">Dashboard Section</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {"".join(rows_html)}
+                </tbody>
+            </table>
+        </div>
+        <p class="trade-table-source">Source: ABS Release Calendar</p>
+    </div>"""
 
 
 def generate_insights(
@@ -2928,6 +3142,7 @@ def create_html_with_insights(
     financial_fig: go.Figure = None,
     iip_tables_html: str = "",
     financial_insights: Dict[str, List[str]] = None,
+    calendar_html: str = "",
 ):
     """Create HTML file with dashboard and insights summary box.
 
@@ -3001,7 +3216,7 @@ def create_html_with_insights(
             <button class="tab-btn active" onclick="switchTab('overview')">Big Picture</button>
             <button class="tab-btn" onclick="switchTab('trade')">Trade</button>
             {financial_tab_btn}
-            <button class="tab-btn" onclick="switchTab('report')">Report</button>
+            <button class="tab-btn" onclick="switchTab('calendar')">Calendar</button>
         </div>"""
 
         tab_css = f"""
@@ -3190,52 +3405,6 @@ def create_html_with_insights(
         # 4) Financial insights
         financial_insights_html = _build_insight_box(financial_insights)
 
-        # Build Report tab: consolidate all insights from every tab
-        report_sections = []
-        # Big Picture insights
-        if insights:
-            bp_html = _build_insight_box(insights)
-            if bp_html:
-                report_sections.append(
-                    '<h2 class="trade-section-heading">Big Picture</h2>' + bp_html
-                )
-        # Trade — Goods insights (Trade Balance + Commodities + Partners)
-        goods_all = {}
-        if trade_insights:
-            for cat in ["Trade Balance", "Commodities", "Partners"]:
-                if cat in trade_insights and trade_insights[cat]:
-                    goods_all[cat] = trade_insights[cat]
-        if goods_all:
-            report_sections.append(
-                '<h2 class="trade-section-heading">Trade \u2014 Goods</h2>'
-                + _build_insight_box(goods_all)
-            )
-        # Trade — Services insights
-        if services_trade_insights:
-            svc_html = _build_insight_box(services_trade_insights)
-            if svc_html:
-                report_sections.append(
-                    '<h2 class="trade-section-heading">Trade \u2014 Services</h2>'
-                    + svc_html
-                )
-        # Financial insights
-        if financial_insights:
-            fin_html = _build_insight_box(financial_insights)
-            if fin_html:
-                report_sections.append(
-                    '<h2 class="trade-section-heading">Financial</h2>' + fin_html
-                )
-        if report_sections:
-            report_tab_html = f"""
-        <div id="tab-report" class="tab-content">
-            {"".join(report_sections)}
-        </div>"""
-        else:
-            report_tab_html = """
-        <div id="tab-report" class="tab-content">
-            <div class="insights-box"><p>No insights available.</p></div>
-        </div>"""
-
         # Build financial tab content if provided
         financial_tab_html = ""
         if financial_fig is not None:
@@ -3273,7 +3442,9 @@ def create_html_with_insights(
             {services_insights_html}
         </div>
         {financial_tab_html}
-        {report_tab_html}
+        <div id="tab-calendar" class="tab-content">
+            {calendar_html}
+        </div>
         {tab_js}"""
     else:
         tab_css = ""
@@ -3549,6 +3720,11 @@ def main():
             for insight in items:
                 print(f"    • {insight}")
 
+    # Fetch ABS release calendar
+    print("Fetching ABS release calendar...")
+    calendar_releases = fetch_release_calendar()
+    calendar_html = generate_calendar_tab_html(calendar_releases)
+
     # Save HTML with insights
     create_html_with_insights(
         charts, insights, "dashboard.html",
@@ -3560,6 +3736,7 @@ def main():
         financial_fig=financial_fig,
         iip_tables_html=iip_tables_html,
         financial_insights=financial_insights,
+        calendar_html=calendar_html,
     )
     print("\nSaved: dashboard.html")
 
