@@ -60,36 +60,33 @@ COLOR_NEGATIVE  = "#D55E00"   # vermilion
 COLOR_SECONDARY = "#56B4E9"   # sky
 COLOR_NEUTRAL   = "#9CA3AF"   # muted grey
 COLOR_BLACK     = "#111827"
+CARD_RADIUS     = 4            # px – card / tab corner radius (0 = square)
 
 # System UI font stack
 FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif"
 
-def _neutral_rgba(opacity: float) -> str:
-    """Return COLOR_NEUTRAL (#9CA3AF) as an rgba() string at the given opacity.
-
-    Baking opacity into the colour ensures Plotly hover-legend swatches show the
-    correct shade rather than a single identical grey for every series.
-    """
-    return f"rgba(156,163,175,{opacity})"
-
-# GDP bars: muted neutral at varying opacity (baked into colour)
+# ── Bar palettes: cool slates, low chroma, wide lightness spread ──
 GDP_BAR_COLORS = {
-    "Consumption": _neutral_rgba(0.85), "GFCF": _neutral_rgba(0.65),
-    "Inventories": _neutral_rgba(0.45), "Exports": _neutral_rgba(0.55),
-    "Imports": _neutral_rgba(0.75),
+    "Consumption":  "#475569",   # slate 600 – darkest (largest real-economy component)
+    "GFCF":         "#64748B",   # slate 500
+    "Inventories":  "#94A3B8",   # slate 400
+    "Exports":      "#708090",   # classic slategrey
+    "Imports":      "#B0BEC5",   # blue-grey 200
 }
 
-# CA bars
 CA_BAR_COLORS = {
-    "Goods": _neutral_rgba(0.80), "Services": _neutral_rgba(0.60),
-    "Primary Income": _neutral_rgba(0.45), "Secondary Income": _neutral_rgba(0.35),
+    "Goods":            "#475569",   # dark slate
+    "Services":         "#6B7B8D",   # mid slate
+    "Primary Income":   "#A8B8C8",   # light blue-grey – clearly distinct
+    "Secondary Income": "#CBD5E0",   # lightest
 }
 
-# FA bars
 FA_BAR_COLORS = {
-    "Direct Investment": _neutral_rgba(0.80), "Portfolio Investment": _neutral_rgba(0.65),
-    "Financial Derivatives": _neutral_rgba(0.45), "Other Investment": _neutral_rgba(0.55),
-    "Reserve Assets": _neutral_rgba(0.35),
+    "Direct Investment":      "#475569",
+    "Portfolio Investment":   "#64748B",
+    "Financial Derivatives":  "#8896A7",
+    "Other Investment":       "#A8B8C8",
+    "Reserve Assets":         "#CBD5E0",
 }
 
 # Trade flow components (BOP item codes)
@@ -2682,7 +2679,7 @@ def create_contributions_chart(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
-                marker_color=GDP_BAR_COLORS.get(comp, _neutral_rgba(0.6)),
+                marker_color=GDP_BAR_COLORS.get(comp, "#94A3B8"),
                 hovertemplate=f"{comp}: %{{y:.1f}} ppts<extra></extra>",
             ))
 
@@ -2749,7 +2746,7 @@ def create_current_account_chart(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
-                marker_color=CA_BAR_COLORS.get(comp, _neutral_rgba(0.5)),
+                marker_color=CA_BAR_COLORS.get(comp, "#94A3B8"),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
@@ -2817,7 +2814,7 @@ def create_financial_account_chart(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
-                marker_color=FA_BAR_COLORS.get(comp, _neutral_rgba(0.5)),
+                marker_color=FA_BAR_COLORS.get(comp, "#94A3B8"),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
@@ -2977,7 +2974,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
                 name=comp,
                 x=gdp_df["TIME_PERIOD"],
                 y=gdp_df[comp],
-                marker_color=GDP_BAR_COLORS.get(comp, _neutral_rgba(0.6)),
+                marker_color=GDP_BAR_COLORS.get(comp, "#94A3B8"),
                 hovertemplate=f"{comp}: %{{y:.1f}} ppts<extra></extra>",
             ))
 
@@ -3008,7 +3005,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
                 name=comp,
                 x=ca_data["TIME_PERIOD"],
                 y=ca_data[comp],
-                marker_color=CA_BAR_COLORS.get(comp, _neutral_rgba(0.5)),
+                marker_color=CA_BAR_COLORS.get(comp, "#94A3B8"),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
@@ -3234,7 +3231,7 @@ def create_html_with_insights(
             font-size: 1em;
             font-weight: 500;
             cursor: pointer;
-            border-radius: 8px 8px 0 0;
+            border-radius: {CARD_RADIUS}px {CARD_RADIUS}px 0 0;
             font-family: inherit;
             transition: background 0.15s, color 0.15s;
         }}
@@ -3264,7 +3261,7 @@ def create_html_with_insights(
         }}
         .trade-table-wrap {{
             background: {CARD_BG};
-            border-radius: 8px;
+            border-radius: {CARD_RADIUS}px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             padding: 16px;
             border: 1px solid {BORDER_COLOR};
@@ -3477,7 +3474,7 @@ def create_html_with_insights(
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border: 1px solid {BORDER_COLOR};
             border-left: 4px solid {COLOR_PRIMARY};
-            border-radius: 8px;
+            border-radius: {CARD_RADIUS}px;
             padding: 20px 25px;
             margin-top: 40px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -3531,7 +3528,7 @@ def create_html_with_insights(
         }}
         .chart-container {{
             background: {CARD_BG};
-            border-radius: 8px;
+            border-radius: {CARD_RADIUS}px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border: 1px solid {BORDER_COLOR};
             padding: 16px;
