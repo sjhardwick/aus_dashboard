@@ -43,21 +43,51 @@ LF_MEASURES = {
     "M16": "Employment/Pop Ratio",
 }
 
-# Colors for GDP components
-GDP_COLORS = {
-    "Consumption": "#4C78A8",   # Blue
-    "GFCF": "#F58518",          # Orange
-    "Inventories": "#72B7B2",   # Teal
-    "Exports": "#54A24B",       # Green
-    "Imports": "#E45756",       # Red
+# ── Theme: Neutrals ──
+PAGE_BG       = "#F7F7F7"
+CARD_BG       = "#FFFFFF"
+TEXT_MAIN     = "#1F2937"
+TEXT_MUTED    = "#6B7280"
+GRID_COLOR    = "#E5E7EB"
+BORDER_COLOR  = "#E5E7EB"
+
+# ── Theme: Semantic colours (Okabe-Ito based) ──
+COLOR_PRIMARY   = "#0072B2"   # blue – headline / key series
+COLOR_POSITIVE  = "#009E73"   # green
+COLOR_NEGATIVE  = "#D55E00"   # vermilion
+COLOR_SECONDARY = "#56B4E9"   # sky
+COLOR_NEUTRAL   = "#9CA3AF"   # muted grey
+COLOR_BLACK     = "#111827"
+
+# System UI font stack
+FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif"
+
+def _neutral_rgba(opacity: float) -> str:
+    """Return COLOR_NEUTRAL (#9CA3AF) as an rgba() string at the given opacity.
+
+    Baking opacity into the colour ensures Plotly hover-legend swatches show the
+    correct shade rather than a single identical grey for every series.
+    """
+    return f"rgba(156,163,175,{opacity})"
+
+# GDP bars: muted neutral at varying opacity (baked into colour)
+GDP_BAR_COLORS = {
+    "Consumption": _neutral_rgba(0.85), "GFCF": _neutral_rgba(0.65),
+    "Inventories": _neutral_rgba(0.45), "Exports": _neutral_rgba(0.55),
+    "Imports": _neutral_rgba(0.75),
 }
 
-# Colors for current account components
-CA_COLORS = {
-    "Goods": "#54A24B",           # Green
-    "Services": "#E45756",        # Red
-    "Primary Income": "#4C78A8",  # Blue
-    "Secondary Income": "#B279A2", # Purple
+# CA bars
+CA_BAR_COLORS = {
+    "Goods": _neutral_rgba(0.80), "Services": _neutral_rgba(0.60),
+    "Primary Income": _neutral_rgba(0.45), "Secondary Income": _neutral_rgba(0.35),
+}
+
+# FA bars
+FA_BAR_COLORS = {
+    "Direct Investment": _neutral_rgba(0.80), "Portfolio Investment": _neutral_rgba(0.65),
+    "Financial Derivatives": _neutral_rgba(0.45), "Other Investment": _neutral_rgba(0.55),
+    "Reserve Assets": _neutral_rgba(0.35),
 }
 
 # Trade flow components (BOP item codes)
@@ -66,16 +96,6 @@ TRADE_COMPONENTS = {
     2000: "Goods Debits",
     4000: "Services Credits",
     6000: "Services Debits",
-}
-
-# Colors for trade flow components
-TRADE_COLORS = {
-    "Goods Credits": "#54A24B",    # Green
-    "Goods Debits": "#E45756",     # Red
-    "Services Credits": "#4C78A8", # Blue
-    "Services Debits": "#F58518",  # Orange
-    "Goods Balance": "#72B7B2",    # Teal
-    "Services Balance": "#B279A2", # Purple
 }
 
 # Financial account components (BOP item codes, original series TSEST=10)
@@ -87,21 +107,38 @@ FA_COMPONENTS = {
     8865: "Reserve Assets",
 }
 
-# Colors for financial account components
-FA_COLORS = {
-    "Direct Investment": "#4C78A8",
-    "Portfolio Investment": "#F58518",
-    "Financial Derivatives": "#72B7B2",
-    "Other Investment": "#E45756",
-    "Reserve Assets": "#B279A2",
-}
 
-# Colors for labour force measures
-LF_COLORS = {
-    "Unemployment Rate": "#E45756",      # Red
-    "Participation Rate": "#4C78A8",     # Blue
-    "Employment/Pop Ratio": "#54A24B",   # Green
-}
+def apply_dashboard_theme(fig, focus_traces=None):
+    """Apply consistent FT/Economist theme to a Plotly figure."""
+    fig.update_layout(
+        paper_bgcolor=PAGE_BG,
+        plot_bgcolor=CARD_BG,
+        font=dict(family=FONT_STACK, color=TEXT_MAIN, size=12),
+        margin=dict(l=60, r=30, t=60, b=60),
+        hovermode="x unified",
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="center", x=0.5,
+            bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_MUTED, size=11),
+        ),
+    )
+    fig.update_xaxes(
+        gridcolor=GRID_COLOR, gridwidth=1,
+        showline=False, zeroline=False,
+        tickfont=dict(size=10),
+    )
+    fig.update_yaxes(
+        gridcolor=GRID_COLOR, gridwidth=1,
+        showline=False, zeroline=False,
+        tickfont=dict(size=10),
+    )
+    if focus_traces is None:
+        focus_traces = []
+    for trace in fig.data:
+        if hasattr(trace, 'line') and trace.line is not None:
+            if trace.name in focus_traces:
+                trace.line.width = max(trace.line.width or 2, 2.5)
+    return fig
 
 # Shorten verbose ABS country names
 COUNTRY_NAME_OVERRIDES = {
@@ -1886,7 +1923,6 @@ def create_merch_insight_charts(
 
     Each chart shows the quarterly time series for a single commodity/partner.
     """
-    colors = ["#4C78A8", "#F58518", "#54A24B", "#E45756"]
     figs: List[go.Figure] = []
 
     for i, item in enumerate(selected_items):
@@ -1909,19 +1945,17 @@ def create_merch_insight_charts(
             x=x_labels,
             y=series.values,
             mode="lines",
-            line=dict(color=colors[i % len(colors)], width=2.5),
+            line=dict(color=COLOR_PRIMARY, width=2.5),
             hovertemplate="$%{y:.2f}bn<extra></extra>",
         ))
         fig.update_layout(
-            template="plotly_white",
             title=f"{item['prefix']} {item['name']}",
             height=320,
-            margin=dict(l=60, r=30, t=50, b=60),
-            hovermode="x unified",
             showlegend=False,
         )
         fig.update_xaxes(tickangle=-45)
         fig.update_yaxes(title_text="A$ Billion")
+        apply_dashboard_theme(fig)
         figs.append(fig)
 
     return figs
@@ -2222,7 +2256,7 @@ def generate_trade_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
         if fmt == "bn":
             return f'<td class="tt-num">${v:,.1f}</td>'
         elif fmt == "pct":
-            color = "#27ae60" if v >= 0 else "#e74c3c"
+            color = COLOR_POSITIVE if v >= 0 else COLOR_NEGATIVE
             return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
         elif fmt == "share":
             return f'<td class="tt-num">{v:.1f}%</td>'
@@ -2294,7 +2328,7 @@ def generate_services_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
         if fmt == "bn":
             return f'<td class="tt-num">${v:,.1f}</td>'
         elif fmt == "pct":
-            color = "#27ae60" if v >= 0 else "#e74c3c"
+            color = COLOR_POSITIVE if v >= 0 else COLOR_NEGATIVE
             return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
         elif fmt == "share":
             return f'<td class="tt-num">{v:.1f}%</td>'
@@ -2361,7 +2395,7 @@ def generate_iip_tables_html(tables: Dict[str, pd.DataFrame]) -> str:
         if fmt == "bn":
             return f'<td class="tt-num">${v:,.1f}</td>'
         elif fmt == "pct":
-            color = "#27ae60" if v >= 0 else "#e74c3c"
+            color = COLOR_POSITIVE if v >= 0 else COLOR_NEGATIVE
             return f'<td class="tt-num" style="color:{color}">{v:+.1f}%</td>'
         elif fmt == "share":
             return f'<td class="tt-num">{v:.1f}%</td>'
@@ -2434,7 +2468,7 @@ def create_contributions_chart(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
-                marker_color=GDP_COLORS[comp],
+                marker_color=GDP_BAR_COLORS.get(comp, _neutral_rgba(0.6)),
                 hovertemplate=f"{comp}: %{{y:.1f}} ppts<extra></extra>",
             ))
 
@@ -2444,8 +2478,8 @@ def create_contributions_chart(
         x=df["TIME_PERIOD"],
         y=df["GDP_growth"],
         mode="lines+markers",
-        line=dict(color="black", width=2),
-        marker=dict(size=6, color="black"),
+        line=dict(color=COLOR_PRIMARY, width=2.5),
+        marker=dict(size=6, color=COLOR_PRIMARY),
         hovertemplate="GDP: %{y:.1f}%<extra></extra>",
     ))
 
@@ -2455,29 +2489,16 @@ def create_contributions_chart(
             text=title,
             font=dict(size=18),
         ),
-        barmode="relative",  # Stacked bars (positive/negative)
+        barmode="relative",
         xaxis=dict(
             title="Quarter",
             tickangle=-45,
-            dtick=4,  # Show every 4th tick (yearly)
+            dtick=4,
         ),
         yaxis=dict(
             title="Percentage Points",
-            zeroline=True,
-            zerolinewidth=1,
-            zerolinecolor="gray",
         ),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5,
-        ),
-        template="plotly_white",
-        hovermode="x unified",
         height=500,
-        margin=dict(l=60, r=40, t=100, b=80),
     )
 
     # Add annotation for data source
@@ -2488,9 +2509,10 @@ def create_contributions_chart(
         x=0,
         y=-0.18,
         showarrow=False,
-        font=dict(size=10, color="gray"),
+        font=dict(size=10, color=TEXT_MUTED),
     )
 
+    apply_dashboard_theme(fig, focus_traces=["GDP Growth"])
     return fig
 
 
@@ -2513,7 +2535,7 @@ def create_current_account_chart(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
-                marker_color=CA_COLORS[comp],
+                marker_color=CA_BAR_COLORS.get(comp, _neutral_rgba(0.5)),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
@@ -2524,8 +2546,8 @@ def create_current_account_chart(
             x=df["TIME_PERIOD"],
             y=df["Current Account"],
             mode="lines+markers",
-            line=dict(color="black", width=2),
-            marker=dict(size=6, color="black"),
+            line=dict(color=COLOR_PRIMARY, width=2.5),
+            marker=dict(size=6, color=COLOR_PRIMARY),
             hovertemplate="CA: $%{y:.1f}bn<extra></extra>",
         ))
 
@@ -2535,29 +2557,16 @@ def create_current_account_chart(
             text=title,
             font=dict(size=18),
         ),
-        barmode="relative",  # Stacked bars (positive/negative)
+        barmode="relative",
         xaxis=dict(
             title="Quarter",
             tickangle=-45,
-            dtick=4,  # Show every 4th tick (yearly)
+            dtick=4,
         ),
         yaxis=dict(
             title="A$ Billion",
-            zeroline=True,
-            zerolinewidth=1,
-            zerolinecolor="gray",
         ),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5,
-        ),
-        template="plotly_white",
-        hovermode="x unified",
         height=500,
-        margin=dict(l=60, r=40, t=100, b=80),
     )
 
     # Add annotation for data source
@@ -2568,9 +2577,10 @@ def create_current_account_chart(
         x=0,
         y=-0.18,
         showarrow=False,
-        font=dict(size=10, color="gray"),
+        font=dict(size=10, color=TEXT_MUTED),
     )
 
+    apply_dashboard_theme(fig, focus_traces=["Current Account"])
     return fig
 
 
@@ -2593,7 +2603,7 @@ def create_financial_account_chart(
                 name=comp,
                 x=df["TIME_PERIOD"],
                 y=df[comp],
-                marker_color=FA_COLORS[comp],
+                marker_color=FA_BAR_COLORS.get(comp, _neutral_rgba(0.5)),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
@@ -2604,8 +2614,8 @@ def create_financial_account_chart(
             x=df["TIME_PERIOD"],
             y=df["Financial Account"],
             mode="lines+markers",
-            line=dict(color="black", width=2),
-            marker=dict(size=6, color="black"),
+            line=dict(color=COLOR_PRIMARY, width=3),
+            marker=dict(size=6, color=COLOR_PRIMARY),
             hovertemplate="FA: $%{y:.1f}bn<extra></extra>",
         ))
 
@@ -2616,6 +2626,7 @@ def create_financial_account_chart(
             font=dict(size=18),
         ),
         barmode="relative",
+        showlegend=False,
         xaxis=dict(
             title="Quarter",
             tickangle=-45,
@@ -2623,23 +2634,11 @@ def create_financial_account_chart(
         ),
         yaxis=dict(
             title="A$ Billion",
-            zeroline=True,
-            zerolinewidth=1,
-            zerolinecolor="gray",
         ),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5,
-        ),
-        template="plotly_white",
-        hovermode="x unified",
         height=500,
-        margin=dict(l=60, r=40, t=100, b=80),
     )
 
+    apply_dashboard_theme(fig, focus_traces=["Financial Account"])
     return fig
 
 
@@ -2654,9 +2653,15 @@ def create_trade_chart(
 
     df = trade_data.copy()
     _common = dict(
-        barmode="relative", showlegend=False, template="plotly_white",
-        hovermode="x unified", height=420, margin=dict(l=60, r=30, t=50, b=80),
+        barmode="relative", showlegend=False,
+        hovermode="x unified", height=420,
     )
+
+    # Trade colour mapping: exports=primary(blue), imports=secondary(sky), balance=dark
+    _trade_line = {
+        "Goods Credits": COLOR_PRIMARY, "Goods Debits": COLOR_SECONDARY,
+        "Services Credits": COLOR_PRIMARY, "Services Debits": COLOR_SECONDARY,
+    }
 
     # --- Goods chart ---
     goods_fig = go.Figure()
@@ -2665,8 +2670,7 @@ def create_trade_chart(
             name="Goods Balance",
             x=df["TIME_PERIOD"],
             y=df["Goods Balance"],
-            marker_color=TRADE_COLORS["Goods Balance"],
-            marker_opacity=0.45,
+            marker_color="rgba(17,24,39,0.3)",
             hovertemplate="Goods Balance: $%{y:.1f}bn<extra></extra>",
         ))
 
@@ -2677,13 +2681,14 @@ def create_trade_chart(
                 x=df["TIME_PERIOD"],
                 y=df[comp],
                 mode="lines",
-                line=dict(color=TRADE_COLORS[comp], width=2),
+                line=dict(color=_trade_line[comp], width=2),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
     goods_fig.update_layout(**_common, title="Goods")
     goods_fig.update_xaxes(tickangle=-45, dtick=4)
-    goods_fig.update_yaxes(title_text="A$ Billion", zeroline=True, zerolinewidth=1, zerolinecolor="gray")
+    goods_fig.update_yaxes(title_text="A$ Billion")
+    apply_dashboard_theme(goods_fig)
 
     # --- Services chart ---
     services_fig = go.Figure()
@@ -2692,8 +2697,7 @@ def create_trade_chart(
             name="Services Balance",
             x=df["TIME_PERIOD"],
             y=df["Services Balance"],
-            marker_color=TRADE_COLORS["Services Balance"],
-            marker_opacity=0.45,
+            marker_color="rgba(17,24,39,0.3)",
             hovertemplate="Services Balance: $%{y:.1f}bn<extra></extra>",
         ))
 
@@ -2704,13 +2708,14 @@ def create_trade_chart(
                 x=df["TIME_PERIOD"],
                 y=df[comp],
                 mode="lines",
-                line=dict(color=TRADE_COLORS[comp], width=2),
+                line=dict(color=_trade_line[comp], width=2),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
     services_fig.update_layout(**_common, title="Services")
     services_fig.update_xaxes(tickangle=-45, dtick=4)
-    services_fig.update_yaxes(title_text="A$ Billion", zeroline=True, zerolinewidth=1, zerolinecolor="gray")
+    services_fig.update_yaxes(title_text="A$ Billion")
+    apply_dashboard_theme(services_fig)
 
     return [goods_fig, services_fig]
 
@@ -2747,7 +2752,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
     gdp_df = gdp_df.sort_values("TIME_PERIOD").reset_index(drop=True)
 
     # Shared layout settings
-    _common = dict(template="plotly_white", hovermode="x unified", showlegend=False)
+    _common = dict(hovermode="x unified", showlegend=False)
 
     # ===== 1. GDP Contributions =====
     gdp_fig = go.Figure()
@@ -2758,7 +2763,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
                 name=comp,
                 x=gdp_df["TIME_PERIOD"],
                 y=gdp_df[comp],
-                marker_color=GDP_COLORS[comp],
+                marker_color=GDP_BAR_COLORS.get(comp, _neutral_rgba(0.6)),
                 hovertemplate=f"{comp}: %{{y:.1f}} ppts<extra></extra>",
             ))
 
@@ -2767,17 +2772,18 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
         x=gdp_df["TIME_PERIOD"],
         y=gdp_df["GDP_growth"],
         mode="lines+markers",
-        line=dict(color="black", width=2),
-        marker=dict(size=4, color="black"),
+        line=dict(color=COLOR_PRIMARY, width=2.5),
+        marker=dict(size=4, color=COLOR_PRIMARY),
         hovertemplate="GDP: %{y:.1f}%<extra></extra>",
     ))
 
     gdp_fig.update_layout(
         **_common, barmode="relative", title="Contributions to GDP Growth",
-        height=420, margin=dict(l=60, r=30, t=50, b=80),
+        height=420,
     )
     gdp_fig.update_xaxes(tickangle=-45, dtick=4)
-    gdp_fig.update_yaxes(title_text="ppts", zeroline=True, zerolinewidth=1)
+    gdp_fig.update_yaxes(title_text="ppts")
+    apply_dashboard_theme(gdp_fig, focus_traces=["GDP Growth"])
 
     # ===== 2. Current Account =====
     ca_fig = go.Figure()
@@ -2788,7 +2794,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
                 name=comp,
                 x=ca_data["TIME_PERIOD"],
                 y=ca_data[comp],
-                marker_color=CA_COLORS[comp],
+                marker_color=CA_BAR_COLORS.get(comp, _neutral_rgba(0.5)),
                 hovertemplate=f"{comp}: $%{{y:.1f}}bn<extra></extra>",
             ))
 
@@ -2798,17 +2804,18 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             x=ca_data["TIME_PERIOD"],
             y=ca_data["Current Account"],
             mode="lines+markers",
-            line=dict(color="black", width=2),
-            marker=dict(size=4, color="black"),
+            line=dict(color=COLOR_PRIMARY, width=2.5),
+            marker=dict(size=4, color=COLOR_PRIMARY),
             hovertemplate="CA: $%{y:.1f}bn<extra></extra>",
         ))
 
     ca_fig.update_layout(
         **_common, barmode="relative", title="Current Account Balance (Seasonally Adjusted)",
-        height=420, margin=dict(l=60, r=30, t=50, b=80),
+        height=420,
     )
     ca_fig.update_xaxes(tickangle=-45, dtick=4)
-    ca_fig.update_yaxes(title_text="A$bn", zeroline=True, zerolinewidth=1)
+    ca_fig.update_yaxes(title_text="A$bn")
+    apply_dashboard_theme(ca_fig, focus_traces=["Current Account"])
 
     # ===== 3. Inflation =====
     inf_fig = go.Figure()
@@ -2818,7 +2825,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             x=inflation_data["TIME_PERIOD"],
             y=inflation_data["Headline"],
             mode="lines",
-            line=dict(color="#AAAAAA", width=1.5),
+            line=dict(color=COLOR_NEUTRAL, width=1.5),
             hovertemplate="Headline: %{y:.1f}%<extra></extra>",
         ))
 
@@ -2828,20 +2835,21 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             x=inflation_data["TIME_PERIOD"],
             y=inflation_data["Trimmed Mean"],
             mode="lines",
-            line=dict(color="#E45756", width=2.5),
+            line=dict(color=COLOR_NEGATIVE, width=2.5),
             hovertemplate="Trimmed Mean: %{y:.1f}%<extra></extra>",
         ))
 
-    inf_fig.add_hrect(y0=2, y1=3, line_width=0, fillcolor="rgba(0,128,0,0.1)")
-    inf_fig.add_hline(y=2, line_dash="dash", line_color="green", line_width=1)
-    inf_fig.add_hline(y=3, line_dash="dash", line_color="green", line_width=1)
+    inf_fig.add_hrect(y0=2, y1=3, line_width=0, fillcolor="rgba(156,163,175,0.08)")
+    inf_fig.add_hline(y=2, line_dash="dash", line_color=GRID_COLOR, line_width=1)
+    inf_fig.add_hline(y=3, line_dash="dash", line_color=GRID_COLOR, line_width=1)
 
     inf_fig.update_layout(
         **_common, title="Inflation",
-        height=380, margin=dict(l=50, r=30, t=50, b=80),
+        height=380,
     )
     inf_fig.update_xaxes(tickangle=-45, dtick=4)
-    inf_fig.update_yaxes(title_text="%", zeroline=True, zerolinewidth=1)
+    inf_fig.update_yaxes(title_text="%")
+    apply_dashboard_theme(inf_fig, focus_traces=["Trimmed Mean"])
 
     # ===== 4. Unemployment Rate =====
     unemp_fig = go.Figure()
@@ -2851,16 +2859,17 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             x=lf_data["TIME_PERIOD"],
             y=lf_data["Unemployment Rate"],
             mode="lines",
-            line=dict(color="#E45756", width=2),
+            line=dict(color=COLOR_NEGATIVE, width=2),
             hovertemplate="Unemployment: %{y:.1f}%<extra></extra>",
         ))
 
     unemp_fig.update_layout(
         **_common, title="Unemployment Rate",
-        height=380, margin=dict(l=50, r=30, t=50, b=80),
+        height=380,
     )
     unemp_fig.update_xaxes(tickangle=-45, dtick=12)
-    unemp_fig.update_yaxes(title_text="%", zeroline=True, zerolinewidth=1)
+    unemp_fig.update_yaxes(title_text="%")
+    apply_dashboard_theme(unemp_fig)
 
     # ===== 5. Participation & Employment =====
     part_fig = go.Figure()
@@ -2870,7 +2879,7 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             x=lf_data["TIME_PERIOD"],
             y=lf_data["Participation Rate"],
             mode="lines",
-            line=dict(color="#4C78A8", width=2),
+            line=dict(color=COLOR_PRIMARY, width=2),
             hovertemplate="Participation: %{y:.1f}%<extra></extra>",
         ))
 
@@ -2880,16 +2889,17 @@ def create_dashboard(start_period: str = "2015-Q1") -> Tuple[List[go.Figure], Di
             x=lf_data["TIME_PERIOD"],
             y=lf_data["Employment/Pop Ratio"],
             mode="lines",
-            line=dict(color="#54A24B", width=2),
+            line=dict(color=COLOR_SECONDARY, width=2),
             hovertemplate="Emp/Pop: %{y:.1f}%<extra></extra>",
         ))
 
     part_fig.update_layout(
         **_common, title="Participation & Employment",
-        height=380, margin=dict(l=50, r=30, t=50, b=80),
+        height=380,
     )
     part_fig.update_xaxes(tickangle=-45, dtick=12)
     part_fig.update_yaxes(title_text="%")
+    apply_dashboard_theme(part_fig)
 
     charts = [gdp_fig, ca_fig, inf_fig, unemp_fig, part_fig]
 
@@ -2994,118 +3004,121 @@ def create_html_with_insights(
             <button class="tab-btn" onclick="switchTab('report')">Report</button>
         </div>"""
 
-        tab_css = """
-        .tab-bar {
+        tab_css = f"""
+        .tab-bar {{
             display: flex;
             gap: 0;
             margin-bottom: 0;
-        }
-        .tab-btn {
+        }}
+        .tab-btn {{
             padding: 12px 28px;
-            border: 1px solid #dee2e6;
+            border: 1px solid {BORDER_COLOR};
             border-bottom: none;
-            background: #e9ecef;
-            color: #495057;
+            background: {PAGE_BG};
+            color: {TEXT_MUTED};
             font-size: 1em;
             font-weight: 500;
             cursor: pointer;
             border-radius: 8px 8px 0 0;
             font-family: inherit;
             transition: background 0.15s, color 0.15s;
-        }
-        .tab-btn:hover {
-            background: #f8f9fa;
-        }
-        .tab-btn.active {
-            background: white;
-            color: #2c3e50;
+        }}
+        .tab-btn:hover {{
+            background: #f0f0f0;
+        }}
+        .tab-btn.active {{
+            background: {CARD_BG};
+            color: {TEXT_MAIN};
             font-weight: 600;
-            border-bottom: 2px solid white;
+            border-bottom: 2px solid {CARD_BG};
             margin-bottom: -1px;
             position: relative;
             z-index: 1;
-        }
-        .tab-content {
+        }}
+        .tab-content {{
             display: none;
-        }
-        .tab-content.active {
+        }}
+        .tab-content.active {{
             display: block;
-        }
-        .trade-tables-grid {
+        }}
+        .trade-tables-grid {{
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 24px;
-            margin-top: 28px;
-        }
-        .trade-table-wrap {
-            background: white;
+            margin-top: 36px;
+        }}
+        .trade-table-wrap {{
+            background: {CARD_BG};
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             padding: 16px;
-            border: 1px solid #dee2e6;
-        }
-        .trade-table-wrap h3 {
+            border: 1px solid {BORDER_COLOR};
+        }}
+        .trade-table-wrap h3 {{
             margin: 0 0 12px 0;
-            color: #2c3e50;
+            color: {TEXT_MAIN};
             font-size: 1.05em;
             font-weight: 600;
-        }
-        .trade-table-scroll {
+        }}
+        .trade-table-scroll {{
             max-height: 420px;
             overflow-y: auto;
-        }
-        .trade-table {
+        }}
+        .trade-table {{
             width: 100%;
             border-collapse: collapse;
             font-size: 0.88em;
-        }
-        .trade-table thead {
+        }}
+        .trade-table thead {{
             position: sticky;
             top: 0;
             z-index: 1;
-        }
-        .trade-table th {
-            background: #f1f3f5;
-            color: #495057;
+        }}
+        .trade-table th {{
+            background: {PAGE_BG};
+            color: {TEXT_MUTED};
             font-weight: 600;
             padding: 8px 10px;
             text-align: right;
-            border-bottom: 2px solid #dee2e6;
+            border-bottom: 2px solid {BORDER_COLOR};
             white-space: nowrap;
-        }
-        .trade-table th.tt-name-hdr {
+        }}
+        .trade-table th.tt-name-hdr {{
             text-align: left;
-        }
-        .trade-table td {
+        }}
+        .trade-table td {{
             padding: 6px 10px;
-            border-bottom: 1px solid #eee;
-        }
-        .trade-table tr:hover {
-            background: #f8f9fa;
-        }
-        .tt-num {
+            border-bottom: 1px solid {GRID_COLOR};
+        }}
+        .trade-table tr:nth-child(even) {{
+            background: #FAFAFA;
+        }}
+        .trade-table tr:hover {{
+            background: #f0f0f0;
+        }}
+        .tt-num {{
             text-align: right;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
-        }
-        .tt-name {
+        }}
+        .tt-name {{
             text-align: left;
             max-width: 180px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-        }
-        .trade-table-source {
+        }}
+        .trade-table-source {{
             margin: 8px 0 0 0;
             font-size: 0.78em;
-            color: #999;
-        }
-        .trade-section-heading {
-            margin: 32px 0 4px 0;
-            color: #2c3e50;
+            color: {TEXT_MUTED};
+        }}
+        .trade-section-heading {{
+            margin: 36px 0 4px 0;
+            color: {TEXT_MAIN};
             font-size: 1.3em;
             font-weight: 600;
-        }"""
+        }}"""
 
         tab_js = """
     <script>
@@ -3279,10 +3292,11 @@ def create_html_with_insights(
     <title>Australian Macroeconomic Dashboard</title>
     <style>
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: {FONT_STACK};
             margin: 0;
-            padding: 20px;
-            background-color: #fafafa;
+            padding: 24px;
+            background-color: {PAGE_BG};
+            color: {TEXT_MAIN};
         }}
         .container {{
             max-width: 1450px;
@@ -3290,23 +3304,23 @@ def create_html_with_insights(
         }}
         .insights-box {{
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: 1px solid #dee2e6;
-            border-left: 4px solid #4C78A8;
+            border: 1px solid {BORDER_COLOR};
+            border-left: 4px solid {COLOR_PRIMARY};
             border-radius: 8px;
             padding: 20px 25px;
-            margin-top: 30px;
+            margin-top: 40px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }}
         .insights-box h2 {{
             margin: 0 0 15px 0;
-            color: #2c3e50;
+            color: {TEXT_MAIN};
             font-size: 1.3em;
             font-weight: 600;
         }}
         .insights-box ul {{
             margin: 0;
             padding-left: 20px;
-            color: #495057;
+            color: {TEXT_MUTED};
         }}
         .insights-box li {{
             margin-bottom: 8px;
@@ -3317,7 +3331,7 @@ def create_html_with_insights(
         }}
         .insights-box h3 {{
             margin: 15px 0 8px 0;
-            color: #34495e;
+            color: {TEXT_MAIN};
             font-size: 1.05em;
             font-weight: 600;
         }}
@@ -3326,8 +3340,8 @@ def create_html_with_insights(
         }}
         .charts-row {{
             display: grid;
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 24px;
+            margin-bottom: 24px;
         }}
         .charts-row-1 {{
             grid-template-columns: 1fr;
@@ -3345,10 +3359,11 @@ def create_html_with_insights(
             min-width: 0;
         }}
         .chart-container {{
-            background: white;
+            background: {CARD_BG};
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            padding: 10px;
+            border: 1px solid {BORDER_COLOR};
+            padding: 16px;
             width: 100%;
             overflow-x: auto;
             box-sizing: border-box;
@@ -3356,7 +3371,7 @@ def create_html_with_insights(
         .source-note {{
             text-align: center;
             font-size: 0.78em;
-            color: #999;
+            color: {TEXT_MUTED};
             margin: 0 0 10px 0;
         }}
         .trade-chart-wrap {{
