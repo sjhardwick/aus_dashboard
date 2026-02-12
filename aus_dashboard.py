@@ -107,11 +107,17 @@ LF_COLORS = {
 COUNTRY_NAME_OVERRIDES = {
     "China (excludes SARs and Taiwan)": "China",
     "Korea, Republic of": "South Korea",
+    "Korea, Republic of (South)": "South Korea",
     "Taiwan, Province of China": "Taiwan",
+    "Asia, nes": "Taiwan",
     "Hong Kong (SAR of China)": "Hong Kong",
     "Macau (SAR of China)": "Macau",
     "United States of America": "United States",
     "United Kingdom, Channel Islands and Isle of Man": "United Kingdom",
+    "United Kingdom, Channel Islands and Isle of Man, nfd": "United Kingdom",
+    "France (includes Andorra and Monaco)": "France",
+    "Italy (includes Holy See and San Marino)": "Italy",
+    "Switzerland (includes Liechtenstein)": "Switzerland",
     "Papua New Guinea": "PNG",
     "United Arab Emirates": "UAE",
     "Saudi Arabia": "Saudi Arabia",
@@ -1218,7 +1224,7 @@ def generate_insights(
             is_cum_trend, z, cum_change = detect_cumulative_trend(gdp_series, window=window, threshold=1.5)
             if is_cum_trend and abs(cum_change) > min_change:
                 direction = "higher" if cum_change > 0 else "lower"
-                insights["GDP"].append(f"GDP growth is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                insights["GDP"].append(f"GDP growth is {abs(cum_change):.1f} ppts {direction} than {period_desc.removeprefix('past ')} ago")
                 break
 
     # Check GDP components for large swings
@@ -1251,7 +1257,7 @@ def generate_insights(
         for window, period_desc in [(4, "past year"), (8, "past 2 years")]:
             is_cum_trend, z, cum_change = detect_cumulative_trend(ca_series, window=window, threshold=1.3)
             if is_cum_trend and abs(cum_change) > 3:
-                direction = "improved" if cum_change > 0 else "deteriorated"
+                direction = "risen" if cum_change > 0 else "fallen"
                 insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}")
                 break
 
@@ -1263,7 +1269,7 @@ def generate_insights(
             min_change = diffs.abs().median()
             is_cum_trend, z, cum_change = detect_cumulative_trend(ca_series, window=window, threshold=1.5)
             if is_cum_trend and abs(cum_change) > min_change:
-                direction = "improved" if cum_change > 0 else "deteriorated"
+                direction = "risen" if cum_change > 0 else "fallen"
                 insights["Current Account"].append(f"Current account has {direction} by ${abs(cum_change):.1f}bn over the {period_desc}")
                 break
 
@@ -1273,7 +1279,7 @@ def generate_insights(
             series = ca_data[comp].dropna()
             is_cum_trend, z, cum_change = detect_cumulative_trend(series, window=4, threshold=1.3)
             if is_cum_trend and abs(cum_change) > 1.5:
-                direction = "improved" if cum_change > 0 else "worsened"
+                direction = "risen" if cum_change > 0 else "fallen"
                 insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_change):.1f}bn over the past year")
 
             # Long-horizon (3yr)
@@ -1282,7 +1288,7 @@ def generate_insights(
                 min_change = diffs.abs().median()
                 is_cum, z_lh, cum_lh = detect_cumulative_trend(series, window=12, threshold=1.5)
                 if is_cum and abs(cum_lh) > min_change:
-                    direction = "improved" if cum_lh > 0 else "worsened"
+                    direction = "risen" if cum_lh > 0 else "fallen"
                     insights["Current Account"].append(f"{comp} balance has {direction} by ${abs(cum_lh):.1f}bn over the past 3 years")
 
     # ----- Inflation Analysis -----
@@ -1320,7 +1326,7 @@ def generate_insights(
             is_cum_trend, z, cum_change = detect_cumulative_trend(infl_series, window=window, threshold=1.5)
             if is_cum_trend and abs(cum_change) > min_change:
                 direction = "higher" if cum_change > 0 else "lower"
-                insights["Inflation"].append(f"Trimmed mean inflation is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                insights["Inflation"].append(f"Trimmed mean inflation is {abs(cum_change):.1f} ppts {direction} than {period_desc.removeprefix('past ')} ago")
                 break
 
     # ----- Labour Market Analysis -----
@@ -1351,7 +1357,7 @@ def generate_insights(
             is_cum_trend, z, cum_change = detect_cumulative_trend(unemp_series, window=window, threshold=1.5)
             if is_cum_trend and abs(cum_change) > min_change:
                 direction = "higher" if cum_change > 0 else "lower"
-                insights["Labour Market"].append(f"Unemployment rate is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                insights["Labour Market"].append(f"Unemployment rate is {abs(cum_change):.1f} ppts {direction} than {period_desc.removeprefix('past ')} ago")
                 break
 
     if "Participation Rate" in lf_data.columns:
@@ -1380,7 +1386,7 @@ def generate_insights(
             is_cum_trend, z, cum_change = detect_cumulative_trend(part_series, window=window, threshold=1.5)
             if is_cum_trend and abs(cum_change) > min_change:
                 direction = "higher" if cum_change > 0 else "lower"
-                insights["Labour Market"].append(f"Participation rate is {abs(cum_change):.1f} ppts {direction} than the {period_desc}")
+                insights["Labour Market"].append(f"Participation rate is {abs(cum_change):.1f} ppts {direction} than {period_desc.removeprefix('past ')} ago")
                 break
 
     # ----- Narrative Detection Tests -----
@@ -1432,7 +1438,7 @@ def generate_insights(
         window_desc = _format_window(w, "quarters", at_cap=(w >= 40))
         has_trend, desc, is_flat = detect_rolling_trend(s, window=w)
         if is_flat and _dedup_ok(name, name, "flat"):
-            insights[cat].append(f"{name} has been essentially flat for {window_desc}")
+            insights[cat].append(f"{name} has had no significant trend for {window_desc}")
         elif has_trend and desc:
             dir_kw = "up" if "up" in desc or "accelerat" in desc else "down"
             if _dedup_ok(name, name, dir_kw):
@@ -1452,7 +1458,7 @@ def generate_insights(
         window_desc = _format_window(w, "months", at_cap=(w >= 120))
         has_trend, desc, is_flat = detect_rolling_trend(s, window=w)
         if is_flat and _dedup_ok(name, name, "flat"):
-            insights[cat].append(f"{name} has been essentially flat for {window_desc}")
+            insights[cat].append(f"{name} has had no significant trend for {window_desc}")
         elif has_trend and desc:
             dir_kw = "up" if "up" in desc or "accelerat" in desc else "down"
             if _dedup_ok(name, name, dir_kw):
@@ -2023,7 +2029,7 @@ def generate_financial_insights(
                 has_trend, desc, is_flat = detect_rolling_trend(fa_series, window=w)
                 window_desc = _format_window(w)
                 if is_flat and _dedup_ok("Financial Account", "flat"):
-                    insight = f"Financial account has been essentially flat for {window_desc}"
+                    insight = f"Financial account has had no significant trend for {window_desc}"
                     scored.append((2.0, "Financial Account", insight))
                     _mark("Financial Account", "flat")
                 elif has_trend and desc:
