@@ -14,6 +14,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import xml.etree.ElementTree as ET
+import re
 from typing import List, Dict, Tuple
 from datetime import date, timedelta
 from urllib.parse import urljoin
@@ -361,6 +362,7 @@ def get_iip_by_country() -> Dict[str, pd.DataFrame]:
     def discover_iip_table_links() -> Dict[str, str]:
         """Resolve current ABS workbook URLs for Table 2 and Table 5."""
         table_links = {}
+        release_year = None
 
         try:
             resp = requests.get(BASE_URL, timeout=15)
@@ -370,6 +372,8 @@ def get_iip_by_country() -> Dict[str, pd.DataFrame]:
             return table_links
 
         soup = BeautifulSoup(resp.text, "html.parser")
+
+        # Prefer explicit workbook links if ABS exposes them in the page markup.
         for link in soup.find_all("a", href=True):
             href = link["href"]
             href_lower = href.lower()
@@ -380,10 +384,40 @@ def get_iip_by_country() -> Dict[str, pd.DataFrame]:
             context_text = " ".join(link.parent.stripped_strings) if link.parent else ""
             combined_text = f"{link_text} {context_text}".lower()
 
-            if "table 2" in combined_text:
+            if "table 2" in combined_text or "5352002" in href_lower:
                 table_links["inward"] = urljoin(BASE_URL, href)
-            elif "table 5" in combined_text:
+            elif "table 5" in combined_text or "5352005" in href_lower:
                 table_links["outward"] = urljoin(BASE_URL, href)
+
+        # Fallback: infer the current release year from page text and construct
+        # the stable ABS workbook filenames for Tables 2 and 5.
+        page_text = " ".join(soup.stripped_strings)
+        year_match = re.search(
+            r"International Investment Position, Australia: Supplementary Statistics,?\s+(20\d{2})",
+            page_text,
+        )
+        if year_match:
+            release_year = year_match.group(1)
+        else:
+            ref_match = re.search(r"Reference period\s+(20\d{2})", page_text)
+            if ref_match:
+                release_year = ref_match.group(1)
+
+        if release_year:
+            fallback_links = {
+                "inward": (
+                    f"https://www.abs.gov.au/statistics/economy/international-trade/"
+                    f"international-investment-position-australia-supplementary-statistics/"
+                    f"{release_year}/5352002_{release_year}.xlsx"
+                ),
+                "outward": (
+                    f"https://www.abs.gov.au/statistics/economy/international-trade/"
+                    f"international-investment-position-australia-supplementary-statistics/"
+                    f"{release_year}/5352005_{release_year}.xlsx"
+                ),
+            }
+            for direction, url in fallback_links.items():
+                table_links.setdefault(direction, url)
 
         return table_links
 
