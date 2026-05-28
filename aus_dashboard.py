@@ -16,6 +16,7 @@ from plotly.subplots import make_subplots
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Tuple
 from datetime import date, timedelta
+from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 # ABS API Configuration
@@ -357,14 +358,43 @@ def get_iip_by_country() -> Dict[str, pd.DataFrame]:
         "latest-release"
     )
 
+    def discover_iip_table_links() -> Dict[str, str]:
+        """Resolve current ABS workbook URLs for Table 2 and Table 5."""
+        table_links = {}
+
+        try:
+            resp = requests.get(BASE_URL, timeout=15)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            print(f"  Warning: could not fetch ABS IIP release page: {e}")
+            return table_links
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            href_lower = href.lower()
+            if not href_lower.endswith(".xlsx"):
+                continue
+
+            link_text = " ".join(link.stripped_strings)
+            context_text = " ".join(link.parent.stripped_strings) if link.parent else ""
+            combined_text = f"{link_text} {context_text}".lower()
+
+            if "table 2" in combined_text:
+                table_links["inward"] = urljoin(BASE_URL, href)
+            elif "table 5" in combined_text:
+                table_links["outward"] = urljoin(BASE_URL, href)
+
+        return table_links
+
     TABLES = {
         "inward": {
-            "file": "5352002_2024.xlsx",
+            "table_num": 2,
             "sheet": "Table2",
             "total_label": "Foreign investment in Australia",
         },
         "outward": {
-            "file": "5352005_2024.xlsx",
+            "table_num": 5,
             "sheet": "Table5",
             "total_label": "Australian investment abroad",
         },
@@ -379,11 +409,20 @@ def get_iip_by_country() -> Dict[str, pd.DataFrame]:
     }
 
     result = {}
+    table_links = discover_iip_table_links()
 
     for direction, meta in TABLES.items():
-        url = f"{BASE_URL}/{meta['file']}"
+        url = table_links.get(direction)
+        if not url:
+            print(
+                f"  Warning: could not find ABS IIP Table {meta['table_num']} workbook link "
+                f"for {direction} data"
+            )
+            result[direction] = pd.DataFrame()
+            continue
+
         try:
-            resp = requests.get(url)
+            resp = requests.get(url, timeout=15)
             resp.raise_for_status()
         except requests.RequestException as e:
             print(f"  Warning: could not download IIP {direction} data: {e}")
